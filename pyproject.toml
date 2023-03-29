@@ -1,12 +1,11 @@
 [tool.poetry]
-[tool.poetry]
 name = "CellMap"
 version = "1.0.0"
 description = "CellMap - RNA landscape inference method"
 authors = ["Yusuke Imoto"]
 readme = "README.md"
 repository = "https://github.com/yusuke-imoto-lab/CellMap"
-documentation = "https://github.com/yusuke-imoto-lab/CellMap"
+documentation = "https://github.com/yusuke-imoto-lab/CellMap/"
 
 [tool.poetry.dependencies]
 python       = ">=3.8,<3.11"
