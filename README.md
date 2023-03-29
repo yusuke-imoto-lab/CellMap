@@ -12,6 +12,7 @@ $ pip install cellmap
 
 ## Requirements
 * Python3
+* matplotlib
 * numpy
 * scipy
 * scikit-learn
