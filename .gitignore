@@ -34,6 +34,7 @@ python/poetry.toml
 
 # Test
 python/cellmap/CellMap_test_pancreas.ipynb
+python/cellmap/data/*
 
 # Others
 .vscode
