@@ -1,6 +1,6 @@
 # CellMap - RNA landscape inference method
 
-The CellMap is a RNA landscape inference method based on graph Hodge decomposition. 
+The CellMap is a RNA landscape inference method based on the graph Hodge decomposition. 
 
 ## Installation
 
