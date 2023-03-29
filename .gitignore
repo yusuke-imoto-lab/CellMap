@@ -1,0 +1,39 @@
+# General
+*~
+.DS_Store
+
+# Data directory
+
+
+# Documents
+#*.rst
+docs
+#sphinx
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info
+dist/
+
+# pyenv
+.python-version
+
+# dotenv
+.env
+
+# virtualenv
+.venv/
+venv/
+ENV/
+
+# Poetry
+python/poetry.lock
+python/poetry.toml
+
+# Test
+python/cellmap/CellMap_test_pancreas.ipynb
+
+# Others
+.vscode
