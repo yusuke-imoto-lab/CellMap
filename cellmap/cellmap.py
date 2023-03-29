@@ -162,7 +162,7 @@ def Hodge_decomposition(
     potential_key = 'Hodge_potential',
     graph_key = 'CM_graph',
     graph_method = 'Delauney',
-    alpha = 0.5,
+    alpha = 0.2,
     n_neighbors = 10,
     contribution_rate = 0.95,
     cutedge_vol  = None,
@@ -232,7 +232,7 @@ def Hodge_decomposition(
     source_term = np.dot(div_mat,(1-alpha)*edge_vel_LD+alpha*edge_vel_HD)
     potential = np.linalg.solve(lap,source_term)
     pot_flow = -np.dot(grad_mat,potential)
-    adata.obs[potential_key] = potential
+    adata.obs[potential_key] = potential - np.min(potential)
     if graph_key not in adata.uns.keys(): adata.uns[graph_key] = np.vstack((source,target))
 
 def view(
@@ -516,7 +516,7 @@ def write(
         for gene in adata.var.index[adata.var['highly_variable']==True]:
             pd_out.insert(len(pd_out.columns), 'HVG_'+gene, data_exp[:,adata.var.index == gene])
     
-    print('succeeded in writing CellMapp data as \"%s\"' % filename)
+    print('succeeded in writing CellMapp data as \"%s.csv\"' % filename)
     print('you can visualize the CDV file by CellMapp viewer https://yusuke-imoto-lab.github.io/CellMapViewer/CellMapViewer/viewer.html')
 
     display(pd_out)
