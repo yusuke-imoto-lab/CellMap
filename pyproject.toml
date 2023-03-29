@@ -1,4 +1,5 @@
 [tool.poetry]
+[tool.poetry]
 name = "CellMap"
 version = "1.0.1"
 description = "CellMap - RNA landscape inference method"
