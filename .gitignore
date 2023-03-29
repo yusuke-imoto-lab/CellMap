@@ -29,12 +29,13 @@ venv/
 ENV/
 
 # Poetry
-python/poetry.lock
-python/poetry.toml
+poetry.lock
+poetry.toml
 
 # Test
-python/cellmap/CellMap_test_pancreas.ipynb
-python/cellmap/data/*
+cellmap/CellMap_test_pancreas.ipynb
+cellmap/data/*
+cellmap/
 
 # Others
 .vscode
