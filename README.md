@@ -21,4 +21,7 @@ $ pip install cellmap
 
 Turtorials are prepared by jupyter notebook.
 
-[Tutorial for pancreas endocrine cell data](https://github.com/yusuke-imoto-lab/CellMap/blob/main/tutorial/CellMap_tutorial_pancreas.ipynb)
+* [Tutorial for pancreas endocrine cell data](https://github.com/yusuke-imoto-lab/CellMap/blob/main/tutorial/CellMap_tutorial_pancreas.ipynb)
+
+
+## Visualization
