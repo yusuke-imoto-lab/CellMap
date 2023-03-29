@@ -4,7 +4,7 @@ jobs:
   pypi:
     runs-on: ubuntu-latest
     container:
-        image: python:3.9
+        image: python:3.7
     defaults:
       run:
         working-directory: ./
