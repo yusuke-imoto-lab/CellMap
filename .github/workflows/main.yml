@@ -19,4 +19,4 @@ jobs:
       - name: publish
         env:
           PYPI_ORG_TOKEN: ${{ secrets.PYPI_ORG_TOKEN }}
-        run: poetry publish --username __token__ --password ${PYPI_ORG_TOKEN} --no-ansi -n -v
+        run: poetry publish --username yusukeimoto --password ${PYPI_ORG_TOKEN} --no-ansi -n -v
