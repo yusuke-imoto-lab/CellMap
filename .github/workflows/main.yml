@@ -16,7 +16,7 @@ jobs:
         run: |
           poetry version $(grep "^version" pyproject.toml | grep -o "[0-9]\.[0-9]\.[0-9]").dev$(date +"%Y%m%d%H%M")
           poetry build -f wheel
-      - name: publishhttps://github.com/yusuke-imoto-lab/CellMap/tree/main/.github/workflows
+      - name: publish
         env:
           PYPI_ORG_TOKEN: ${{ secrets.PYPI_ORG_TOKEN }}
         run: poetry publish --username __token__ --password ${PYPI_ORG_TOKEN} --no-ansi -n -v
