@@ -27,3 +27,5 @@ Turtorials are prepared by jupyter notebook.
 ## Visualization
 
 We prepare original visualization system *[CellMap viewer](https://github.com/yusuke-imoto-lab/CellMapViewer)*. 
+
+<div style="text-align:left"><img style="width:100%; height: auto" src="https://github.com/yusuke-imoto-lab/CellMapViewer/blob/main/Images/TopImage.png"/></div>
