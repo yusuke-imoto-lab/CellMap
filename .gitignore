@@ -36,7 +36,8 @@ poetry.toml
 # Test
 cellmap/CellMap_test_pancreas.ipynb
 cellmap/data/*
-# cellmap/
+tutorial/data
+tutorial/cache
 
 # Others
 .vscode

@@ -476,7 +476,7 @@ def view_surface_3D_cluster(
 
 def write(
     adata,
-    filename = 'CellMap.csv',
+    filename = 'CellMap',
     basis = 'X_umap',
     potential_key = 'Hodge_potential',
     cluster_key = 'clusters',
@@ -521,7 +521,7 @@ def write(
 
     display(pd_out)
     
-    pd_out.to_csv(filename)
+    pd_out.to_csv('%s.csv' % filename)
 
 
 def create_dgraph_potential(
