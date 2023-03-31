@@ -178,6 +178,7 @@ def Hodge_decomposition(
     contribution_rate = 0.95,
     cutedge_vol  = None,
     cutedge_length = None,
+    verbose = True,
     ):
     """
     Hodge decomposition
@@ -240,10 +241,21 @@ def Hodge_decomposition(
     grad_mat[tuple(np.vstack((np.arange(n_edge_),target)))] = 1
     div_mat = -grad_mat.T
     lap = -np.dot(div_mat,grad_mat)
-    source_term = np.dot(div_mat,(1-alpha)*edge_vel_LD+alpha*edge_vel_HD)
+    edge_vel = (1-alpha)*edge_vel_LD+alpha*edge_vel_HD
+    source_term = np.dot(div_mat,edge_vel)
     potential = np.linalg.solve(lap,source_term)
     pot_flow = -np.dot(grad_mat,potential)
     adata.obs[potential_key] = potential - np.min(potential)
+
+    log_ = {}
+    log_["Contribution_ratio"] = {}
+    norm_grad = np.linalg.norm(pot_flow)
+    norm_curl = np.linalg.norm(edge_vel-pot_flow)
+    log_["Contribution_ratio"]['Potential'] = norm_grad/(norm_grad+norm_curl)
+    log_["Contribution_ratio"]['Rotation'] = norm_curl/(norm_grad+norm_curl)
+    adata.uns['CellMap_log'] = log_
+    if verbose: print(adata.uns['CellMap_log'])
+
     if graph_key not in adata.uns.keys(): adata.uns[graph_key] = np.vstack((source,target))
 
 def view(
@@ -266,8 +278,9 @@ def view(
                             )
     basis = kwargs_arg['basis']
     
-    if 'camp' not in kwargs:
+    if 'cmap' not in kwargs:
         kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
+    
     data_pos = adata.obsm[basis]
     fig,ax = plt.subplots(figsize=(15,10))
     sc = ax.scatter(data_pos[:,0],data_pos[:,1],c=adata.obs[potential_key],zorder=10,**kwargs)
@@ -309,7 +322,7 @@ def view_cluster(
                             )
     basis = kwargs_arg['basis']
     
-    if 'camp' not in kwargs:
+    if 'cmap' not in kwargs:
         kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
 
     data_pos = adata.obsm[basis]
@@ -323,10 +336,10 @@ def view_cluster(
         np.random.seed(seed)
         idx_random[np.random.choice(len(idx_random),int(plot_rate*len(idx_random)),replace=False)] = True
         cluster_set = np.unique(cluster)
-        cmap = plt.get_cmap("tab10") if len(cluster_set) <= 10 else plt.get_cmap("tab20")
+        cmap_pt = plt.get_cmap("tab10") if len(cluster_set) <= 10 else plt.get_cmap("tab20")
         for i in range(len(cluster_set)):
             idx = (cluster == cluster_set[i]) & idx_random
-            ax.scatter(data_pos[idx,0],data_pos[idx,1],zorder=10,alpha=0.8,edgecolor='w',color=cmap(i),**kwargs)
+            ax.scatter(data_pos[idx,0],data_pos[idx,1],zorder=10,alpha=0.8,edgecolor='w',color=cmap_pt(i),**kwargs)
             txt = plt.text(np.mean(data_pos[cluster == cluster_set[i]],axis=0)[0],np.mean(data_pos[cluster == cluster_set[i]],axis=0)[1],cluster_set[i]
                            ,color=cmap(i),fontsize=20,ha='center', va='center',fontweight='bold',zorder=20)
             txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
@@ -356,12 +369,14 @@ def view_surface(
                              graph_key = graph_key,
                             )
     basis = kwargs_arg['basis']
+
+    if 'cmap' not in kwargs:
+        kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
     
     data_pos = adata.obsm[basis]
     tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
-    cmap = cmap_earth(adata.obs[potential_key])
     fig,ax = plt.subplots(figsize=(15,10))
-    cntr = ax.tricontourf(tri_,adata.obs[potential_key],cmap=cmap,levels=100,zorder=2)
+    cntr = ax.tricontourf(tri_,adata.obs[potential_key],cmap=kwargs['cmap'],levels=100,zorder=2)
     fig.colorbar(cntr, shrink=0.75, orientation='vertical').set_label('Potential',fontsize=20)
     if show_graph: ax.triplot(tri_,color='w',lw=0.5,zorder=10,alpha=1)
     ax.set_xlim(np.min(data_pos[:,0])-0.02*(np.max(data_pos[:,0])-np.min(data_pos[:,0])),np.max(data_pos[:,0])+0.02*(np.max(data_pos[:,0])-np.min(data_pos[:,0])))
@@ -401,9 +416,11 @@ def view_surface_3D(
                             )
     basis = kwargs_arg['basis']
     
+    if 'cmap' not in kwargs:
+        kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
+
     data_pos = adata.obsm[basis]
     tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
-    cmap = cmap_earth(adata.obs[potential_key])
     fig = plt.figure(figsize=(15,15))
     ax = fig.add_subplot(111, projection='3d')
     cntr = ax.plot_trisurf(tri_,adata.obs[potential_key],cmap=cmap,zorder=2)#,cmap=cmap_CellMap,levels=100)
@@ -448,7 +465,8 @@ def view_surface_3D_cluster(
         basis = kwargs_arg['basis']
         data_pos = adata.obsm[basis]
         tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
-        cmap = cmap_earth(adata.obs[potential_key])
+        if 'cmap' not in kwargs:
+            kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
         fig = plt.figure(figsize=(15,15))
         ax = fig.add_subplot(111, projection='3d')
         cntr = ax.plot_trisurf(tri_,adata.obs[potential_key],cmap=cmap,zorder=2,alpha=0.9)#,cmap=cmap_CellMap,levels=100)
