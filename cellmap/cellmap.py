@@ -251,8 +251,8 @@ def Hodge_decomposition(
     log_["Contribution_ratio"] = {}
     norm_grad = np.linalg.norm(pot_flow)
     norm_curl = np.linalg.norm(edge_vel-pot_flow)
-    log_["Contribution_ratio"]['Potential'] = norm_grad/(norm_grad+norm_curl)
-    log_["Contribution_ratio"]['Rotation'] = norm_curl/(norm_grad+norm_curl)
+    log_["Contribution_ratio"]['Potential'] = '%0.2f\%' %norm_grad/(norm_grad+norm_curl)
+    log_["Contribution_ratio"]['Rotation'] = '%0.2f\%' % norm_curl/(norm_grad+norm_curl)
     adata.uns['CellMap_log'] = log_
     if verbose: print(adata.uns['CellMap_log'])
 
