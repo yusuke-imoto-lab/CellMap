@@ -253,7 +253,6 @@ def Hodge_decomposition(
     rot_flow = edge_vel - pot_flow
     source_target = np.hstack((source,target))
     rot_flow_2 = np.hstack((rot_flow,rot_flow))
-    print(np.array([np.mean(rot_flow_2[source_target==i]) for i in range(adata.shape[0])]))
     adata.obs[rotation_key] = np.array([np.mean(rot_flow_2[source_target==i]) for i in range(adata.shape[0])])
 
     log_ = {}
@@ -318,7 +317,7 @@ def view_cluster(
     show_graph = True,
     cutedge_vol  = None,
     cutedge_length = None,
-    plot_rate = 0.3,
+    n_points = 1000,
     seed = None,
     title = '',
     **kwargs
@@ -343,7 +342,7 @@ def view_cluster(
         cluster = adata.obs[cluster_key]
         idx_random = np.zeros(cluster.shape,dtype=bool)
         np.random.seed(seed)
-        idx_random[np.random.choice(len(idx_random),int(plot_rate*len(idx_random)),replace=False)] = True
+        idx_random[np.random.choice(len(idx_random),min(n_points,len(idx_random)),replace=False)] = True
         cluster_set = np.unique(cluster)
         cmap_pt = plt.get_cmap("tab10") if len(cluster_set) <= 10 else plt.get_cmap("tab20")
         for i in range(len(cluster_set)):
@@ -461,7 +460,7 @@ def view_surface_3D_cluster(
     elev = 30,
     azim = -60,
     seed = None,
-    plot_rate = 0.25,
+    n_points = 500,
     title = '',
     **kwargs
     ):
@@ -487,9 +486,10 @@ def view_surface_3D_cluster(
         cluster = adata.obs[cluster_key]
         idx = np.zeros(cluster.shape,dtype=bool)
         np.random.seed(seed)
-        idx[np.random.choice(len(idx),int(plot_rate*len(idx)),replace=False)] = True
+        print(n_points,len(idx),min(n_points,len(idx)))
+        idx[np.random.choice(len(idx),min(n_points,len(idx)),replace=False)] = True
         cluster_set = np.unique(cluster)
-        z_shift = 0.1*np.abs( np.max(adata.obs[potential_key]) - np.min(adata.obs[potential_key]))
+        z_shift = 0.05*np.abs( np.max(adata.obs[potential_key]) - np.min(adata.obs[potential_key]))
         if len(cluster_set) <= 10:
             cmap_pt = plt.get_cmap("tab10")
             vmin,vmax = 0,10
@@ -557,7 +557,7 @@ def write(
             pd_out.insert(len(pd_out.columns), 'HVG_'+gene, data_exp[:,adata.var.index == gene])
     
     print('succeeded in writing CellMapp data as \"%s.csv\"' % filename)
-    print('you can visualize the CDV file by CellMapp viewer https://yusuke-imoto-lab.github.io/CellMapViewer/CellMapViewer/viewer.html')
+    print('You can visualize the CDV file by CellMapp viewer https://yusuke-imoto-lab.github.io/CellMapViewer/CellMapViewer/viewer.html')
 
     display(pd_out)
     
