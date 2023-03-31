@@ -78,6 +78,17 @@ def check_arguments(
             else:
                 raise KeyError('The key \"%s\" was not found in adata.obsm.obsm. Please modify the argument \"vel_2d_key\".' % kwargs['vel_2d_key'])
     
+    if 'basis' in kwargs.keys():
+        if (kwargs['basis'] not in adata.obsm.keys()) and (kwargs['basis'] not in adata.layers.keys()):
+            if 'X_umap' in adata.obsm.keys():
+                logger.warning('The key \"%s\" was not found in adata.obsm, but \"X_umap\" was found insted. Replace \"%s\" with \"X_umap\".' % (kwargs['basis'],kwargs['basis']))
+                kwargs['basis'] = 'X_umap'
+            elif 'X_tsne' in adata.obsm.keys():
+                logger.warning('Warning: The key \"%s\" was not found in adata.obsm, but \"X_tsne\" was found insted. Replace \"%s\" with \"X_tsne\".' % (kwargs['basis'],kwargs['basis']))
+                kwargs['basis'] = 'X_tsne'
+            else:
+                raise KeyError('The key \"%s\" was not found in adata.obsm.obsm. Please modify the argument \"exp_2d_key\".' % kwargs['basis'])
+
     if 'map_key' in kwargs.keys():
         if kwargs['map_key'] == None:
             kwargs['map_key'] = kwargs['exp_2d_key']
@@ -455,7 +466,7 @@ def view_surface_3D_cluster(
             cmap = plt.get_cmap("tab10")
             vmin,vmax = 0,10
         else:
-            plt.get_cmap("tab20")
+            cmap = plt.get_cmap("tab20")
             vmin,vmax = 0,20
         id_color = np.empty(len(cluster),dtype=int)
         for i in range(len(cluster_set)):
@@ -512,8 +523,10 @@ def write(
             pd_out.insert(len(pd_out.columns), gene, data_exp[:,adata.var.index == gene])
     
     if use_HVG:
-        scanpy.pp.highly_variable_genes(adata,n_top_genes=n_HVG)
-        for gene in adata.var.index[adata.var['highly_variable']==True]:
+        scanpy.pp.highly_variable_genes(adata)
+        min_mean = np.percentile(np.mean(adata.X.toarray(),axis=0)[np.mean(adata.X.toarray(),axis=0)>0],90)
+        idx_means = adata.var['means'] > min_mean
+        for gene in adata.var.index[idx_means][np.argsort(adata.var['dispersions_norm'].values[idx_means])[::-1][:n_HVG]]:
             pd_out.insert(len(pd_out.columns), 'HVG_'+gene, data_exp[:,adata.var.index == gene])
     
     print('succeeded in writing CellMapp data as \"%s.csv\"' % filename)
