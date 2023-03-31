@@ -150,9 +150,11 @@ def check_arguments(
 
 def cmap_earth(cv):
     #c_list  = np.array(['#0938BF','#50D9FB','#B7E5FA','#98D685','#36915c','#F9EFCD','#E0BB7D','#D3A62D','#997618','#705B10','#5F510D','#A56453','#5C1D09'])
-    c_min,c_max = 5,95
+    # c_min,c_max = 5,95
     c_list  = np.array(['#0938BF','#50D9FB','#B7E5FA','#98D685','#fff5d1','#997618','#705B10'])
-    c_level = np.array([np.percentile(cv,(c_max-c_min)*(i)/len(c_list)+c_min) for i in range(len(c_list))])
+    # c_level = np.array([np.percentile(cv,(c_max-c_min)*(i)/len(c_list)+c_min) for i in range(len(c_list))])
+    c_level = np.array([np.percentile(cv,100*(i)/len(c_list)) for i in range(len(c_list))])
+    # c_level = np.array([i*(np.max(cv)-np.min(cv))/len(c_list) + np.min(cv) for i in range(len(c_list))])
     color = np.vstack((c_level,c_list)).T
     hight = 1000*color[:,0].astype(np.float32)
     hightnorm = sklearn.preprocessing.minmax_scale(hight)
@@ -171,6 +173,7 @@ def Hodge_decomposition(
     exp_2d_key = 'X_umap',
     vel_2d_key = 'velocity_umap',
     potential_key = 'Hodge_potential',
+    rotation_key = 'Hodge_rotation',
     graph_key = 'CM_graph',
     graph_method = 'Delauney',
     alpha = 0.2,
@@ -223,15 +226,15 @@ def Hodge_decomposition(
         source = np.ravel(np.repeat(np.arange(exp_HD.shape[0]).reshape((-1, 1)),n_neighbors,axis=1))
         target = np.ravel(indices)
     
-    idx = np.isnan(vel_HD[0])==False
-    X1,X2 = exp_HD[:,idx][source],exp_HD[:,idx][target]
-    V1,V2 = vel_HD[:,idx][source],vel_HD[:,idx][target]
+    idx_vel_HD = np.isnan(vel_HD[0])==False
+    X1,X2 = exp_HD[:,idx_vel_HD][source],exp_HD[:,idx_vel_HD][target]
+    V1,V2 = vel_HD[:,idx_vel_HD][source],vel_HD[:,idx_vel_HD][target]
     Dis = np.linalg.norm(X2-X1,axis=1)
     edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
     
-    idx = np.isnan(vel_LD[0])==False
-    X1,X2 = exp_LD[:,idx][source],exp_LD[:,idx][target]
-    V1,V2 = vel_LD[:,idx][source],vel_LD[:,idx][target]
+    idx_vel_LD = np.isnan(vel_LD[0])==False
+    X1,X2 = exp_LD[:,idx_vel_LD][source],exp_LD[:,idx_vel_LD][target]
+    V1,V2 = vel_LD[:,idx_vel_LD][source],vel_LD[:,idx_vel_LD][target]
     Dis = np.linalg.norm(X2-X1,axis=1)
     edge_vel_LD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
     
@@ -247,10 +250,16 @@ def Hodge_decomposition(
     pot_flow = -np.dot(grad_mat,potential)
     adata.obs[potential_key] = potential - np.min(potential)
 
+    rot_flow = edge_vel - pot_flow
+    source_target = np.hstack((source,target))
+    rot_flow_2 = np.hstack((rot_flow,rot_flow))
+    print(np.array([np.mean(rot_flow_2[source_target==i]) for i in range(adata.shape[0])]))
+    adata.obs[rotation_key] = np.array([np.mean(rot_flow_2[source_target==i]) for i in range(adata.shape[0])])
+
     log_ = {}
     log_["Contribution_ratio"] = {}
     norm_grad = np.linalg.norm(pot_flow)
-    norm_curl = np.linalg.norm(edge_vel-pot_flow)
+    norm_curl = np.linalg.norm(rot_flow)
     log_["Contribution_ratio"]['Potential'] = '{:.2%}'.format(norm_grad/(norm_grad+norm_curl))
     log_["Contribution_ratio"]['Rotation']  = '{:.2%}'.format(norm_curl/(norm_grad+norm_curl))
     adata.uns['CellMap_log'] = log_
@@ -297,7 +306,7 @@ def view(
             print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
     ax.axis('off')
     ax.set_title(title,fontsize=18)
-    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label('Potential',fontsize=20);
+    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(potential_key,fontsize=20);
 
 
 def view_cluster(
@@ -346,7 +355,7 @@ def view_cluster(
     else:
         print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
     ax.set_title(title,fontsize=18)
-    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label('Potential',fontsize=20)
+    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(potential_key,fontsize=20)
     ax.axis('off')
 
 
@@ -370,6 +379,7 @@ def view_surface(
                             )
     basis = kwargs_arg['basis']
 
+
     if 'cmap' not in kwargs:
         kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
     
@@ -377,7 +387,7 @@ def view_surface(
     tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
     fig,ax = plt.subplots(figsize=(15,10))
     cntr = ax.tricontourf(tri_,adata.obs[potential_key],cmap=kwargs['cmap'],levels=100,zorder=2)
-    fig.colorbar(cntr, shrink=0.75, orientation='vertical').set_label('Potential',fontsize=20)
+    fig.colorbar(cntr, shrink=0.75, orientation='vertical').set_label(potential_key,fontsize=20)
     if show_graph: ax.triplot(tri_,color='w',lw=0.5,zorder=10,alpha=1)
     ax.set_xlim(np.min(data_pos[:,0])-0.02*(np.max(data_pos[:,0])-np.min(data_pos[:,0])),np.max(data_pos[:,0])+0.02*(np.max(data_pos[:,0])-np.min(data_pos[:,0])))
     ax.set_ylim(np.min(data_pos[:,1])-0.02*(np.max(data_pos[:,1])-np.min(data_pos[:,1])),np.max(data_pos[:,1])+0.02*(np.max(data_pos[:,1])-np.min(data_pos[:,1])))
@@ -425,7 +435,7 @@ def view_surface_3D(
     ax = fig.add_subplot(111, projection='3d')
     cntr = ax.plot_trisurf(tri_,adata.obs[potential_key],cmap=kwargs['cmap'],zorder=2)
     ax.set_box_aspect(aspect = (1,1,0.8))
-    fig.colorbar(cntr, shrink=0.5, orientation='vertical').set_label('Potential',fontsize=20)
+    fig.colorbar(cntr, shrink=0.5, orientation='vertical').set_label(potential_key,fontsize=20)
     ax.set_title(title,fontsize=18)
     if cluster_key != None:
         texts = []
@@ -469,10 +479,10 @@ def view_surface_3D_cluster(
             kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
         fig = plt.figure(figsize=(15,15))
         ax = fig.add_subplot(111, projection='3d')
-        cntr = ax.plot_trisurf(tri_,adata.obs[potential_key],cmap=cmap,zorder=2,alpha=0.9)#,cmap=cmap_CellMap,levels=100)
+        cntr = ax.plot_trisurf(tri_,adata.obs[potential_key],cmap=kwargs['cmap'],zorder=2,alpha=0.9)#,cmap=cmap_CellMap,levels=100)
         ax.set_box_aspect(aspect = (1,1,0.8))
         ax.set_title(title,fontsize=18)
-        fig.colorbar(cntr, shrink=0.5, orientation='vertical').set_label('Potential',fontsize=20)
+        fig.colorbar(cntr, shrink=0.5, orientation='vertical').set_label(potential_key,fontsize=20)
         texts = []
         cluster = adata.obs[cluster_key]
         idx = np.zeros(cluster.shape,dtype=bool)
@@ -494,8 +504,9 @@ def view_surface_3D_cluster(
                            np.max(adata.obs[potential_key][cluster == cluster_set[i]]),cluster_set[i]
                            ,color=cmap_pt(i),fontsize=20,ha='center', va='center',fontweight='bold',zorder=1000)
             txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
-        ax.scatter(data_pos[idx,0],data_pos[idx,1],adata.obs[potential_key][idx]+z_shift,c=id_color[idx],zorder=100,alpha=1,edgecolor='w',vmin=vmin,vmax=vmax,cmap=cmap,**kwargs)
-        ax.scatter(data_pos[idx,0],data_pos[idx,1],adata.obs[potential_key][idx]+z_shift*0.5,color='k',zorder=10,alpha=0.1,vmin=vmin,vmax=vmax,cmap=cmap,**kwargs)
+        kwargs['cmap'] = cmap_pt
+        ax.scatter(data_pos[idx,0],data_pos[idx,1],adata.obs[potential_key][idx]+z_shift,c=id_color[idx],zorder=100,alpha=1,edgecolor='w',vmin=vmin,vmax=vmax,**kwargs)
+        ax.scatter(data_pos[idx,0],data_pos[idx,1],adata.obs[potential_key][idx]+z_shift*0.5,color='k',zorder=10,alpha=0.1,vmin=vmin,vmax=vmax,**kwargs)
     else:
         print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
     ax.view_init(elev=elev, azim=azim);
