@@ -341,7 +341,7 @@ def view_cluster(
             idx = (cluster == cluster_set[i]) & idx_random
             ax.scatter(data_pos[idx,0],data_pos[idx,1],zorder=10,alpha=0.8,edgecolor='w',color=cmap_pt(i),**kwargs)
             txt = plt.text(np.mean(data_pos[cluster == cluster_set[i]],axis=0)[0],np.mean(data_pos[cluster == cluster_set[i]],axis=0)[1],cluster_set[i]
-                           ,color=cmap(i),fontsize=20,ha='center', va='center',fontweight='bold',zorder=20)
+                           ,color=cmap_pt(i),fontsize=20,ha='center', va='center',fontweight='bold',zorder=20)
             txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
     else:
         print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
@@ -423,7 +423,7 @@ def view_surface_3D(
     tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
     fig = plt.figure(figsize=(15,15))
     ax = fig.add_subplot(111, projection='3d')
-    cntr = ax.plot_trisurf(tri_,adata.obs[potential_key],cmap=cmap,zorder=2)#,cmap=cmap_CellMap,levels=100)
+    cntr = ax.plot_trisurf(tri_,adata.obs[potential_key],cmap=kwargs['cmap'],zorder=2)
     ax.set_box_aspect(aspect = (1,1,0.8))
     fig.colorbar(cntr, shrink=0.5, orientation='vertical').set_label('Potential',fontsize=20)
     ax.set_title(title,fontsize=18)
@@ -481,20 +481,18 @@ def view_surface_3D_cluster(
         cluster_set = np.unique(cluster)
         z_shift = 0.1*np.abs( np.max(adata.obs[potential_key]) - np.min(adata.obs[potential_key]))
         if len(cluster_set) <= 10:
-            cmap = plt.get_cmap("tab10")
+            cmap_pt = plt.get_cmap("tab10")
             vmin,vmax = 0,10
         else:
-            cmap = plt.get_cmap("tab20")
+            cmap_pt = plt.get_cmap("tab20")
             vmin,vmax = 0,20
         id_color = np.empty(len(cluster),dtype=int)
         for i in range(len(cluster_set)):
             id_color[cluster == cluster_set[i]] = i
-            # idx = (cluster == cluster_set[i]) & idx_random
-            # ax.scatter(data_pos[idx,0],data_pos[idx,1],adata.obs[potential_key][idx]+z_shift,zorder=100,alpha=0.8,edgecolor='w',color=cmap(i),**kwargs)
             txt = ax.text(np.mean(data_pos[cluster == cluster_set[i]],axis=0)[0],
                            np.mean(data_pos[cluster == cluster_set[i]],axis=0)[1],
                            np.max(adata.obs[potential_key][cluster == cluster_set[i]]),cluster_set[i]
-                           ,color=cmap(i),fontsize=20,ha='center', va='center',fontweight='bold',zorder=1000)
+                           ,color=cmap_pt(i),fontsize=20,ha='center', va='center',fontweight='bold',zorder=1000)
             txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
         ax.scatter(data_pos[idx,0],data_pos[idx,1],adata.obs[potential_key][idx]+z_shift,c=id_color[idx],zorder=100,alpha=1,edgecolor='w',vmin=vmin,vmax=vmax,cmap=cmap,**kwargs)
         ax.scatter(data_pos[idx,0],data_pos[idx,1],adata.obs[potential_key][idx]+z_shift*0.5,color='k',zorder=10,alpha=0.1,vmin=vmin,vmax=vmax,cmap=cmap,**kwargs)
