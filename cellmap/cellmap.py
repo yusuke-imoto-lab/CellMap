@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib import patheffects as PathEffects
 import scipy
 import sklearn.preprocessing
+import sklearn.neighbors
 import matplotlib.colors
 import pandas as pd
 import logging
@@ -219,7 +220,7 @@ def Hodge_decomposition(
         pca = sklearn.decomposition.PCA()
         exp_HD_pca = pca.fit_transform(exp_HD)
         n_pca = np.min(np.arange(len(pca.explained_variance_ratio_))[np.cumsum(pca.explained_variance_ratio_)>contribution_rate])
-        knn = NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
+        knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
         knn.fit(exp_HD_pca[:,:n_pca])
         distances, indices = knn.kneighbors(exp_HD_pca[:,:n_pca])
         distances, indices = distances[:,1:], indices[:,1:]
