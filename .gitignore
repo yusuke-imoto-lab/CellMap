@@ -39,6 +39,8 @@ cellmap/*.csv
 cellmap/data/*
 tutorial/data
 tutorial/cache
+tutorial/res
+tutorial/.ipynb_checkpoints
 
 # Others
 .vscode
