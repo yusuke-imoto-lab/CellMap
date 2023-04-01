@@ -115,8 +115,8 @@ def check_arguments(
     for key in key_names:
         if key in kwargs.keys():
             if kwargs[key] != None:
-                if kwargs[key] not in adata.layers.keys():
-                    raise KeyError('The key \"%s\" was not found in adata.layers. Please modify the argument \"%s\".' % (kwargs[key],key))
+                if (kwargs[key] not in adata.obsm.keys()) | (kwargs[key] not in adata.layers.keys()):
+                    raise KeyError('The key \"%s\" was not found in adata.obsm or adata.layers. Please modify the argument \"%s\".' % (kwargs[key],key))
     
     key = 'obs_key'
     if key in kwargs.keys():
@@ -522,7 +522,7 @@ def write(
     genes = None,
     expression_key = None,
     use_HVG = True,
-    n_HVG = 10
+    n_HVG = 10,
 ):
     kwargs = check_arguments(adata,basis=basis,potential_key=potential_key,cluster_key = 'clusters',obs_key=obs_key,genes=genes,expression_key=expression_key)
     basis,obs_key,genes = kwargs['basis'],kwargs['obs_key'],kwargs['genes']
