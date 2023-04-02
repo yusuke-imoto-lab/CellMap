@@ -253,7 +253,8 @@ def Hodge_decomposition(
     lap = -np.dot(div_mat,grad_mat)
     edge_vel = (1-alpha)*edge_vel_LD+alpha*edge_vel_HD
     source_term = np.dot(div_mat,edge_vel)
-    potential = np.linalg.solve(lap,source_term)
+    lap_inv = np.linalg.pinv(lap)
+    potential = np.dot(lap_inv,source_term)
     pot_flow = -np.dot(grad_mat,potential)
     adata.obs[potential_key] = potential - np.min(potential)
 
