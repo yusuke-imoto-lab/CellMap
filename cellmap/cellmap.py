@@ -214,7 +214,7 @@ def Hodge_decomposition(
     
     vel_HD = adata.obsm[vel_key] if vel_key in adata.obsm.keys() else adata.layers[vel_key]
     if logscale_vel:
-        vel_HD = (adata.obs['n_counts'].values*vel_HD.T).T/np.power(2,exp_HD)
+        vel_HD = (adata.obs['n_counts'].values*vel_HD.T).T/np.exp(exp_HD)
     exp_LD = adata.obsm[exp_2d_key][:,:2] if exp_2d_key in adata.obsm.keys() else adata.layers[exp_2d_key][:,:2]
     vel_LD = adata.obsm[vel_2d_key][:,:2] if vel_2d_key in adata.obsm.keys() else adata.layers[vel_2d_key][:,:2]
     
@@ -233,17 +233,23 @@ def Hodge_decomposition(
         source = np.ravel(np.repeat(np.arange(exp_HD.shape[0]).reshape((-1, 1)),n_neighbors,axis=1))
         target = np.ravel(indices)
     
-    idx_vel_HD = np.isnan(vel_HD[0])==False
-    X1,X2 = exp_HD[:,idx_vel_HD][source],exp_HD[:,idx_vel_HD][target]
-    V1,V2 = vel_HD[:,idx_vel_HD][source],vel_HD[:,idx_vel_HD][target]
-    Dis = np.linalg.norm(X2-X1,axis=1)
-    edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
+    if alpha > 0:
+        idx_vel_HD = np.isnan(vel_HD[0])==False
+        X1,X2 = exp_HD[:,idx_vel_HD][source],exp_HD[:,idx_vel_HD][target]
+        V1,V2 = vel_HD[:,idx_vel_HD][source],vel_HD[:,idx_vel_HD][target]
+        Dis = np.linalg.norm(X2-X1,axis=1)
+        edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
+    else:
+        edge_vel_HD = 0
     
-    idx_vel_LD = np.isnan(vel_LD[0])==False
-    X1,X2 = exp_LD[:,idx_vel_LD][source],exp_LD[:,idx_vel_LD][target]
-    V1,V2 = vel_LD[:,idx_vel_LD][source],vel_LD[:,idx_vel_LD][target]
-    Dis = np.linalg.norm(X2-X1,axis=1)
-    edge_vel_LD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
+    if alpha < 1:
+        idx_vel_LD = np.isnan(vel_LD[0])==False
+        X1,X2 = exp_LD[:,idx_vel_LD][source],exp_LD[:,idx_vel_LD][target]
+        V1,V2 = vel_LD[:,idx_vel_LD][source],vel_LD[:,idx_vel_LD][target]
+        Dis = np.linalg.norm(X2-X1,axis=1)
+        edge_vel_LD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
+    else:
+        edge_vel_LD = 0
     
     n_edge_ = len(source)
     grad_mat = np.zeros([n_edge_,n_node_],dtype=float)
@@ -666,9 +672,9 @@ def view_surface_3D_cluster(
         kwargs['cmap'] = cmap_pt
         ax.scatter(data_pos[idx,0],data_pos[idx,1],adata.obs[potential_key][idx]+z_shift,c=id_color[idx],zorder=100,alpha=1,edgecolor='w',vmin=vmin,vmax=vmax,**kwargs)
         ax.scatter(data_pos[idx,0],data_pos[idx,1],adata.obs[potential_key][idx]+z_shift*0.5,color='k',zorder=10,alpha=0.1,vmin=vmin,vmax=vmax,**kwargs)
+        ax.view_init(elev=elev, azim=azim);
     else:
         print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
-    ax.view_init(elev=elev, azim=azim);
 
 
 def write(
@@ -683,7 +689,7 @@ def write(
     use_HVG = True,
     n_HVG = 10,
 ):
-    kwargs = check_arguments(adata,basis=basis,potential_key=potential_key,cluster_key = 'clusters',obs_key=obs_key,genes=genes,expression_key=expression_key)
+    kwargs = check_arguments(adata,basis=basis,potential_key=potential_key,cluster_key=cluster_key,obs_key=obs_key,genes=genes,expression_key=expression_key)
     basis,obs_key,genes = kwargs['basis'],kwargs['obs_key'],kwargs['genes']
     
     if expression_key == None:
