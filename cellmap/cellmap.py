@@ -271,6 +271,90 @@ def Hodge_decomposition(
 
     if graph_key not in adata.uns.keys(): adata.uns[graph_key] = np.vstack((source,target))
 
+def Hodge_decomposition_genes(
+    adata,
+    genes,
+    exp_key = None,
+    vel_key  = 'velocity',
+    exp_2d_key = 'X_umap',
+    vel_2d_key = 'velocity_umap',
+    potential_key = 'Hodge_potential',
+    rotation_key = 'Hodge_rotation',
+    graph_key = 'CM_graph',
+    graph_method = 'Delauney',
+    alpha = 0.2,
+    n_neighbors = 10,
+    contribution_rate = 0.95,
+    cutedge_vol  = None,
+    cutedge_length = None,
+    verbose = True,
+    use_HVG = True,
+    logscale_vel = True,
+    n_HVG = 10,
+    ):
+    """
+    Hodge decomposition
+
+    Parameters
+    ----------
+    adata: anndata (n_samples, n_features)
+    
+    exp_key: None or string
+    """
+    
+    kwargs_arg = check_arguments(adata, exp_key=exp_key, vel_key = vel_key, exp_2d_key=exp_2d_key, vel_2d_key=vel_2d_key, graph_method=graph_method)
+    exp_key,vel_key,exp_2d_key,vel_2d_key = kwargs_arg['exp_key'],kwargs_arg['vel_key'],kwargs_arg['exp_2d_key'],kwargs_arg['vel_2d_key']
+    
+    
+    if exp_key == None:
+        if scipy.sparse.issparse(adata.X):
+            exp_HD = adata.X.toarray()
+        else:
+            exp_HD = adata.X
+    elif exp_key in adata.obsm.keys():
+        exp_HD = adata.obsm[exp_key]
+    else:
+        exp_HD = adata.layers[exp_key]
+    
+    vel_HD = adata.obsm[vel_key] if vel_key in adata.obsm.keys() else adata.layers[vel_key]
+    if logscale_vel:
+        vel_HD = (1e+4*vel_HD.T/adata.obs['n_counts'].values).T/np.power(2,exp_HD)
+    exp_LD = adata.obsm[exp_2d_key][:,:2] if exp_2d_key in adata.obsm.keys() else adata.layers[exp_2d_key][:,:2]
+    vel_LD = adata.obsm[vel_2d_key][:,:2] if vel_2d_key in adata.obsm.keys() else adata.layers[vel_2d_key][:,:2]
+    
+    n_node_ = exp_HD.shape[0]
+    if graph_method == 'Delauney':
+        tri_,idx_tri = create_graph(exp_LD[:,0],exp_LD[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
+        source, target = np.ravel(tri_.triangles[idx_tri][:,[0,1,2]]),np.ravel(tri_.triangles[idx_tri][:,[1,2,0]])
+    elif graph_method == 'knn':
+        pca = sklearn.decomposition.PCA()
+        exp_HD_pca = pca.fit_transform(exp_HD)
+        n_pca = np.min(np.arange(len(pca.explained_variance_ratio_))[np.cumsum(pca.explained_variance_ratio_)>contribution_rate])
+        knn = NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
+        knn.fit(exp_HD_pca[:,:n_pca])
+        distances, indices = knn.kneighbors(exp_HD_pca[:,:n_pca])
+        distances, indices = distances[:,1:], indices[:,1:]
+        source = np.ravel(np.repeat(np.arange(exp_HD.shape[0]).reshape((-1, 1)),n_neighbors,axis=1))
+        target = np.ravel(indices)
+    
+    n_edge_ = len(source)
+    grad_mat = np.zeros([n_edge_,n_node_],dtype=float)
+    grad_mat[tuple(np.vstack((np.arange(n_edge_),source)))] = -1
+    grad_mat[tuple(np.vstack((np.arange(n_edge_),target)))] = 1
+    div_mat = -grad_mat.T
+    lap = -np.dot(div_mat,grad_mat)
+    lap_inv = np.linalg.pinv(lap)
+    
+    for gene in genes:
+        X1,X2 = exp_HD[:,adata.var.index == gene][source],exp_HD[:,adata.var.index == gene][target]
+        V1,V2 = vel_HD[:,adata.var.index == gene][source],vel_HD[:,adata.var.index == gene][target]
+        Dis = np.linalg.norm(exp_HD[target]-exp_HD[source],axis=1)
+        # Dis[Dis==0] = 1
+        edge_vel = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
+        source_term = np.dot(div_mat,edge_vel)
+        potential = np.dot(lap_inv,source_term)
+        adata.obs[potential_key+'_Gene_%s' % gene] = potential - np.min(potential)
+
 def view(
     adata,
     basis = 'X_umap',
@@ -407,6 +491,73 @@ def view_surface(
                 txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
                 texts.append(txt)
 
+def view_surface_genes                                                                                                                                                                                                                        (
+    adata,
+    genes,
+    exp_key = None,
+    vel_key  = 'velocity',
+    basis = 'X_umap',
+    potential_key = 'Hodge_potential',
+    graph_key = 'CM_graph',
+    cluster_key = None,
+    show_graph = False,
+    cutedge_vol  = None,
+    cutedge_length = None,
+    logscale_vel = True,
+    **kwargs,
+    ):
+    
+    kwargs_arg = check_arguments(adata,
+                             basis = basis,
+                             potential_key = potential_key,
+                             graph_key = graph_key,
+                            )
+    basis = kwargs_arg['basis']
+    
+    if exp_key == None:
+        if scipy.sparse.issparse(adata.X):
+            exp_HD = adata.X.toarray()
+        else:
+            exp_HD = adata.X
+    elif exp_key in adata.obsm.keys():
+        exp_HD = adata.obsm[exp_key]
+    else:
+        exp_HD = adata.layers[exp_key]
+    
+    vel_HD = adata.obsm[vel_key] if vel_key in adata.obsm.keys() else adata.layers[vel_key]
+    if logscale_vel:
+        vel_HD = (1e+4*vel_HD.T/adata.obs['n_counts'].values).T/np.power(2,exp_HD)
+    if 'cmap' not in kwargs:
+        kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
+    
+    data_pos = adata.obsm[basis]
+    tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
+    
+    for gene in genes:
+        fig,ax = plt.subplots(1,3,figsize=(45,10))
+        cntr = ax[0].tricontourf(tri_,np.squeeze(exp_HD[:,adata.var.index==gene]),cmap=kwargs['cmap'],levels=100,zorder=2)
+        fig.colorbar(cntr, shrink=0.75, orientation='vertical',ax=ax[0]).set_label('gene expression',fontsize=20)
+        ax[0].set_title('%s_expression' % gene,fontsize=18)
+        cntr = ax[1].tricontourf(tri_,np.squeeze(vel_HD[:,adata.var.index==gene]),cmap=kwargs['cmap'],levels=100,zorder=2)
+        fig.colorbar(cntr, shrink=0.75, orientation='vertical',ax=ax[1]).set_label('RNA velocity',fontsize=20)
+        ax[1].set_title('%s_potential' % gene,fontsize=18)
+        cntr = ax[2].tricontourf(tri_,adata.obs['%s_Gene_%s' % (potential_key,gene)],cmap=kwargs['cmap'],levels=100,zorder=2)
+        fig.colorbar(cntr, shrink=0.75, orientation='vertical',ax=ax[2]).set_label(potential_key,fontsize=20)
+        ax[2].set_title('%s_potential' % gene,fontsize=18)
+        for ax_i in range(3):
+            if show_graph: ax[ax_i].triplot(tri_,color='w',lw=0.5,zorder=10,alpha=1)
+            ax[ax_i].set_xlim(np.min(data_pos[:,0])-0.02*(np.max(data_pos[:,0])-np.min(data_pos[:,0])),np.max(data_pos[:,0])+0.02*(np.max(data_pos[:,0])-np.min(data_pos[:,0])))
+            ax[ax_i].set_ylim(np.min(data_pos[:,1])-0.02*(np.max(data_pos[:,1])-np.min(data_pos[:,1])),np.max(data_pos[:,1])+0.02*(np.max(data_pos[:,1])-np.min(data_pos[:,1])))
+            ax[ax_i].tick_params(labelbottom=False,labelleft=False,labelright=False,labeltop=False,bottom=False,left=False,right=False,top=False)
+            ax[ax_i].spines['right'].set_visible(False),ax[ax_i].spines['top'].set_visible(False),ax[ax_i].spines['bottom'].set_visible(False),ax[ax_i].spines['left'].set_visible(False)
+            if cluster_key != None:
+                texts = []
+                if cluster_key in adata.obs.keys():
+                    cluster = adata.obs[cluster_key]
+                    for c in np.unique(cluster):
+                        txt = ax[ax_i].text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],c,fontsize=20,ha='center', va='center',fontweight='bold')
+                        txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
+                        texts.append(txt)
 
 def view_surface_3D(
     adata,
