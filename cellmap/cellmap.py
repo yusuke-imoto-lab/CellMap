@@ -119,7 +119,7 @@ def check_arguments(
     for key in key_names:
         if key in kwargs.keys():
             if kwargs[key] != None:
-                if (kwargs[key] not in adata.obsm.keys()) | (kwargs[key] not in adata.layers.keys()):
+                if (kwargs[key] not in adata.obsm.keys()) & (kwargs[key] not in adata.layers.keys()):
                     raise KeyError('The key \"%s\" was not found in adata.obsm or adata.layers. Please modify the argument \"%s\".' % (kwargs[key],key))
     
     key = 'obs_key'
@@ -156,8 +156,8 @@ def cmap_earth(cv):
     #c_list  = np.array(['#0938BF','#50D9FB','#B7E5FA','#98D685','#36915c','#F9EFCD','#E0BB7D','#D3A62D','#997618','#705B10','#5F510D','#A56453','#5C1D09'])
     # c_min,c_max = 5,95
     c_list  = np.array(['#0938BF','#50D9FB','#B7E5FA','#98D685','#fff5d1','#997618','#705B10'])
-    # c_level = np.array([np.percentile(cv,(c_max-c_min)*(i)/len(c_list)+c_min) for i in range(len(c_list))])
-    c_level = np.array([np.percentile(cv,100*(i)/len(c_list)) for i in range(len(c_list))])
+    c_level = np.array([np.percentile(cv,(c_max-c_min)*(i)/len(c_list)+c_min) for i in range(len(c_list))])
+    # c_level = np.array([np.percentile(cv,100*(i)/len(c_list)) for i in range(len(c_list))])
     # c_level = np.array([i*(np.max(cv)-np.min(cv))/len(c_list) + np.min(cv) for i in range(len(c_list))])
     color = np.vstack((c_level,c_list)).T
     hight = 1000*color[:,0].astype(np.float32)
