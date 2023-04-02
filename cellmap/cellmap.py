@@ -239,7 +239,9 @@ def Hodge_decomposition(
         V1,V2 = vel_HD[:,idx_vel_HD][source],vel_HD[:,idx_vel_HD][target]
         Dis = np.linalg.norm(X2-X1,axis=1)
         Dis[Dis==0] = 1
-        edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis/np.sum(idx_vel_HD)
+        edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
+        edge_vel_HD_norm = np.linalg.norm(edge_vel_HD)
+        if edge_vel_HD_norm > 0: edge_vel_HD = edge_vel_HD/edge_vel_HD_norm
     else:
         edge_vel_HD = 0
     
@@ -249,7 +251,9 @@ def Hodge_decomposition(
         V1,V2 = vel_LD[:,idx_vel_LD][source],vel_LD[:,idx_vel_LD][target]
         Dis = np.linalg.norm(X2-X1,axis=1)
         Dis[Dis==0] = 1
-        edge_vel_LD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis/2
+        edge_vel_LD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
+        edge_vel_LD_norm = np.linalg.norm(edge_vel_LD)
+        if edge_vel_LD_norm > 0: edge_vel_LD = edge_vel_LD/edge_vel_LD_norm
     else:
         edge_vel_LD = 0
     
