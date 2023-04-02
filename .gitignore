@@ -45,3 +45,6 @@ tutorial/.ipynb_checkpoints/*
 
 # Others
 .vscode
+tutorial/.ipynb_checkpoints/CellMap_tutorial_pancreas-checkpoint.ipynb
+cellmap/.ipynb_checkpoints/CellMap_test_pancreas-checkpoint.ipynb
+cellmap/.ipynb_checkpoints/CellMap_test_pancreas-checkpoint.ipynb
