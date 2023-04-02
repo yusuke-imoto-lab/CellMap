@@ -186,6 +186,7 @@ def Hodge_decomposition(
     cutedge_vol  = None,
     cutedge_length = None,
     verbose = True,
+    logscale_vel = True,
     ):
     """
     Hodge decomposition
@@ -212,7 +213,8 @@ def Hodge_decomposition(
         exp_HD = adata.layers[exp_key]
     
     vel_HD = adata.obsm[vel_key] if vel_key in adata.obsm.keys() else adata.layers[vel_key]
-    if
+    if logscale_vel:
+        vel_HD = (adata.obs['n_counts'].values*vel_HD.T).T/np.power(2,exp_HD)
     exp_LD = adata.obsm[exp_2d_key][:,:2] if exp_2d_key in adata.obsm.keys() else adata.layers[exp_2d_key][:,:2]
     vel_LD = adata.obsm[vel_2d_key][:,:2] if vel_2d_key in adata.obsm.keys() else adata.layers[vel_2d_key][:,:2]
     
