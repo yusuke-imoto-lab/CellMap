@@ -154,7 +154,7 @@ def check_arguments(
 
 def cmap_earth(cv):
     #c_list  = np.array(['#0938BF','#50D9FB','#B7E5FA','#98D685','#36915c','#F9EFCD','#E0BB7D','#D3A62D','#997618','#705B10','#5F510D','#A56453','#5C1D09'])
-    # c_min,c_max = 5,95
+    c_min,c_max = 5,95
     c_list  = np.array(['#0938BF','#50D9FB','#B7E5FA','#98D685','#fff5d1','#997618','#705B10'])
     c_level = np.array([np.percentile(cv,(c_max-c_min)*(i)/len(c_list)+c_min) for i in range(len(c_list))])
     # c_level = np.array([np.percentile(cv,100*(i)/len(c_list)) for i in range(len(c_list))])
