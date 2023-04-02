@@ -56,11 +56,14 @@ def check_arguments(
     if 'exp_2d_key' in kwargs.keys():
         if (kwargs['exp_2d_key'] not in adata.obsm.keys()) and (kwargs['exp_2d_key'] not in adata.layers.keys()):
             if 'X_umap' in adata.obsm.keys():
-                logger.warning('The key \"%s\" was not found in adata.obsm, but \"X_umap\" was found insted. Replace \"%s\" with \"X_umap\".' % (kwargs['exp_2d_key'],kwargs['exp_2d_key']))
+                logger.warning('The key \"%s\" was not found in adata.obsm, but \"X_umap\" was found insted. \"%s\" was replaced with \"X_umap\".' % (kwargs['exp_2d_key'],kwargs['exp_2d_key']))
                 kwargs['exp_2d_key'] = 'X_umap'
             elif 'X_tsne' in adata.obsm.keys():
-                logger.warning('Warning: The key \"%s\" was not found in adata.obsm, but \"X_tsne\" was found insted. Replace \"%s\" with \"X_tsne\".' % (kwargs['exp_2d_key'],kwargs['exp_2d_key']))
+                logger.warning('Warning: The key \"%s\" was not found in adata.obsm, but \"X_tsne\" was found insted. \"%s\" was replaced with \"X_tsne\".' % (kwargs['exp_2d_key'],kwargs['exp_2d_key']))
                 kwargs['exp_2d_key'] = 'X_tsne'
+            elif 'X_pca' in adata.obsm.keys():
+                logger.warning('Warning: The key \"%s\" was not found in adata.obsm, but \"X_pca\" was found insted. \"%s\" was replaced with \"X_tsne\".' % (kwargs['exp_2d_key'],kwargs['exp_2d_key']))
+                kwargs['exp_2d_key'] = 'X_pca'
             else:
                 raise KeyError('The key \"%s\" was not found in adata.obsm.obsm. Please modify the argument \"exp_2d_key\".' % kwargs['exp_2d_key'])
     
@@ -71,10 +74,10 @@ def check_arguments(
     if 'vel_2d_key' in kwargs.keys():
         if (kwargs['vel_2d_key'] not in adata.obsm.keys()) and (kwargs['vel_2d_key'] not in adata.layers.keys()):
             if 'velocity_umap' in adata.obsm.keys():
-                logger.warning('The key \"%s\" was not found in adata.obsm, but \"velocity_umap\" was found insted. Replace \"%s\" with \"velocity_umap\".' % (kwargs['vel_2d_key'],kwargs['vel_2d_key']))
+                logger.warning('The key \"%s\" was not found in adata.obsm, but \"velocity_umap\" was found insted. \"%s\" was replaced with \"velocity_umap\".' % (kwargs['vel_2d_key'],kwargs['vel_2d_key']))
                 kwargs['vel_2d_key'] = 'velocity_umap'
             elif 'velocity_tsne' in adata.obsm.keys():
-                logger.warning('Warning: The key \"%s\" was not found in adata.obsm, but \"velocity_tsne\" was found insted. Replace \"%s\" with \"velocity_tsne\".' % (kwargs['vel_2d_key'],kwargs['vel_2d_key']))
+                logger.warning('Warning: The key \"%s\" was not found in adata.obsm, but \"velocity_tsne\" was found insted. \"%s\" was replaced with \"velocity_tsne\".' % (kwargs['vel_2d_key'],kwargs['vel_2d_key']))
                 kwargs['vel_2d_key'] = 'velocity_tsne'
             else:
                 raise KeyError('The key \"%s\" was not found in adata.obsm.obsm. Please modify the argument \"vel_2d_key\".' % kwargs['vel_2d_key'])
@@ -82,10 +85,10 @@ def check_arguments(
     if 'basis' in kwargs.keys():
         if (kwargs['basis'] not in adata.obsm.keys()) and (kwargs['basis'] not in adata.layers.keys()):
             if 'X_umap' in adata.obsm.keys():
-                logger.warning('The key \"%s\" was not found in adata.obsm, but \"X_umap\" was found insted. Replace \"%s\" with \"X_umap\".' % (kwargs['basis'],kwargs['basis']))
+                logger.warning('The key \"%s\" was not found in adata.obsm, but \"X_umap\" was found insted. \"%s\" was replaced with \"X_umap\".' % (kwargs['basis'],kwargs['basis']))
                 kwargs['basis'] = 'X_umap'
             elif 'X_tsne' in adata.obsm.keys():
-                logger.warning('Warning: The key \"%s\" was not found in adata.obsm, but \"X_tsne\" was found insted. Replace \"%s\" with \"X_tsne\".' % (kwargs['basis'],kwargs['basis']))
+                logger.warning('Warning: The key \"%s\" was not found in adata.obsm, but \"X_tsne\" was found insted. \"%s\" was replaced with \"X_tsne\".' % (kwargs['basis'],kwargs['basis']))
                 kwargs['basis'] = 'X_tsne'
             else:
                 raise KeyError('The key \"%s\" was not found in adata.obsm.obsm. Please modify the argument \"exp_2d_key\".' % kwargs['basis'])
@@ -209,6 +212,7 @@ def Hodge_decomposition(
         exp_HD = adata.layers[exp_key]
     
     vel_HD = adata.obsm[vel_key] if vel_key in adata.obsm.keys() else adata.layers[vel_key]
+    if
     exp_LD = adata.obsm[exp_2d_key][:,:2] if exp_2d_key in adata.obsm.keys() else adata.layers[exp_2d_key][:,:2]
     vel_LD = adata.obsm[vel_2d_key][:,:2] if vel_2d_key in adata.obsm.keys() else adata.layers[vel_2d_key][:,:2]
     
