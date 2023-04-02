@@ -37,10 +37,11 @@ poetry.toml
 cellmap/CellMap_test_pancreas.ipynb
 cellmap/*.csv
 cellmap/data/*
+cellmap/.ipynb_checkpoints
 tutorial/data
 tutorial/cache
 tutorial/res
-tutorial/.ipynb_checkpoints
+tutorial/.ipynb_checkpoints/*
 
 # Others
 .vscode
