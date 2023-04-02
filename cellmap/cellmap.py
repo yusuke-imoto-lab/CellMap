@@ -180,7 +180,7 @@ def Hodge_decomposition(
     rotation_key = 'Hodge_rotation',
     graph_key = 'CM_graph',
     graph_method = 'Delauney',
-    alpha = 0.2,
+    alpha = 0.5,
     n_neighbors = 10,
     contribution_rate = 0.95,
     cutedge_vol  = None,
