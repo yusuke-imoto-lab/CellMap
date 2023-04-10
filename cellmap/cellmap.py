@@ -192,7 +192,7 @@ def Hodge_decomposition(
     rotation_vkey = 'rotation_velocity',
     graph_key = 'CM_graph',
     graph_method = 'Delauney',
-    alpha = 0.5,
+    alpha = 0.2,
     n_neighbors = 10,
     contribution_rate_pca = 0.95,
     cutedge_vol  = None,
@@ -256,13 +256,10 @@ def Hodge_decomposition(
         V1,V2 = vel_HD[:,idx_vel_HD][source],vel_HD[:,idx_vel_HD][target]
         Dis = np.linalg.norm(X2-X1,axis=1)
         Dis[Dis==0] = 1
-<<<<<<< HEAD
         edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis/np.sum(idx_vel_HD)
-=======
-        edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
+        # edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
         edge_vel_HD_norm = np.linalg.norm(edge_vel_HD)
         if edge_vel_HD_norm > 0: edge_vel_HD = edge_vel_HD/edge_vel_HD_norm
->>>>>>> 987059fb20c7a26b8af350bfd55a5b8fbc5137fa
     else:
         edge_vel_HD = 0
     
@@ -272,16 +269,10 @@ def Hodge_decomposition(
         V1,V2 = vel_LD[:,idx_vel_LD][source],vel_LD[:,idx_vel_LD][target]
         Dis = np.linalg.norm(X2-X1,axis=1)
         Dis[Dis==0] = 1
-<<<<<<< HEAD
         V1_p,V2_p = V1*(X2-X1),V2*(X2-X1)
         V1_p[V1_p<0] = 0
         V2_p[V2_p<0] = 0
         edge_vel_LD = np.sum(0.5*(V1_p+V2_p),axis=1)/Dis/2
-=======
-        edge_vel_LD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
-        edge_vel_LD_norm = np.linalg.norm(edge_vel_LD)
-        if edge_vel_LD_norm > 0: edge_vel_LD = edge_vel_LD/edge_vel_LD_norm
->>>>>>> 987059fb20c7a26b8af350bfd55a5b8fbc5137fa
     else:
         edge_vel_LD = 0
     
