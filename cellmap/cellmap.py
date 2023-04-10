@@ -10,6 +10,7 @@ import matplotlib.colors
 import pandas as pd
 import logging
 import scanpy
+import scvelo as scv
 
 
 def create_graph(
