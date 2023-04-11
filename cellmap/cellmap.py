@@ -307,7 +307,7 @@ def Hodge_decomposition(
             vel_potential[i] = 2*(np.sum((adata.obs[potential_key][source[idx_s]].values-adata.obs[potential_key][target[idx_s]].values)*ex_s.T,axis=1) + \
                                 np.sum((adata.obs[potential_key][target[idx_t]].values-adata.obs[potential_key][source[idx_t]].values)*ex_t.T,axis=1))
         adata.obsm[pot_vkey_] = vel_potential
-        adata.obsm[rot_vkey_]  = adata.obsm['velocity_umap']-vel_potential
+        adata.obsm[rot_vkey_]  = adata.obsm[pot_vkey_]-vel_potential
     elif graph_method == 'knn':
         knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
         knn.fit(exp_LD)
@@ -317,7 +317,7 @@ def Hodge_decomposition(
             ex_s = (exp_LD[indices[i]]-exp_LD[i])/np.linalg.norm(exp_LD[indices[i]]-exp_LD[i],ord=2)
             vel_potential[i] = -2*np.sum((adata.obs[potential_key].values[indices[i]]-adata.obs[potential_key].values[i])*ex_s.T,axis=1)
         adata.obsm[pot_vkey_] = vel_potential
-        adata.obsm[rot_vkey_]  = adata.obsm['velocity_umap']-vel_potential
+        adata.obsm[rot_vkey_]  = adata.obsm[pot_vkey_]-vel_potential
 
     ## Contribution ratio
     log_ = {}
@@ -380,7 +380,6 @@ def Hodge_decomposition_genes(
     if logscale_vel:
         vel_HD = (1e+4*vel_HD.T/adata.obs['n_counts'].values).T/np.power(2,exp_HD)
     exp_LD = adata.obsm[exp_2d_key][:,:2] if exp_2d_key in adata.obsm.keys() else adata.layers[exp_2d_key][:,:2]
-    vel_LD = adata.obsm[vel_2d_key][:,:2] if vel_2d_key in adata.obsm.keys() else adata.layers[vel_2d_key][:,:2]
     
     n_node_ = exp_HD.shape[0]
     if graph_method == 'Delauney':
@@ -409,7 +408,6 @@ def Hodge_decomposition_genes(
         X1,X2 = exp_HD[:,adata.var.index == gene][source],exp_HD[:,adata.var.index == gene][target]
         V1,V2 = vel_HD[:,adata.var.index == gene][source],vel_HD[:,adata.var.index == gene][target]
         Dis = np.linalg.norm(exp_HD[target]-exp_HD[source],axis=1)
-        # Dis[Dis==0] = 1
         edge_vel = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
         source_term = np.dot(div_mat,edge_vel)
         potential = np.dot(lap_inv,source_term)
