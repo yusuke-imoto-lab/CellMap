@@ -74,9 +74,9 @@ def check_arguments(
             else:
                 raise KeyError('The key \"%s\" was not found in adata.obsm.obsm. Please modify the argument \"exp_2d_key\".' % kwargs['exp_2d_key'])
     
-    if 'vel_key' in kwargs.keys():
-        if (kwargs['vel_key'] not in adata.obsm.keys()) and (kwargs['vel_key'] not in adata.layers.keys()):
-            raise KeyError('The key \"%s\" was not found in adata.obsm.obsm. Please modify the argument \"vel_key\".' % kwargs['vel_key'])
+    if 'vkey' in kwargs.keys():
+        if (kwargs['vkey'] not in adata.obsm.keys()) and (kwargs['vkey'] not in adata.layers.keys()):
+            raise KeyError('The key \"%s\" was not found in adata.obsm.obsm. Please modify the argument \"vkey\".' % kwargs['vkey'])
     
     if 'vel_2d_key' in kwargs.keys():
         if (kwargs['vel_2d_key'] not in adata.obsm.keys()) and (kwargs['vel_2d_key'] not in adata.layers.keys()):
@@ -184,9 +184,9 @@ def cmap_earth(cv):
 
 def Hodge_decomposition(
     adata,
-    exp_key = None,
-    vel_key  = 'velocity',
     basis = 'umap',
+    vkey  = 'velocity',
+    exp_key = None,
     potential_key = 'Hodge_potential',
     potential_vkey = 'potential_velocity',
     rotation_key = 'Hodge_rotation',
@@ -211,11 +211,11 @@ def Hodge_decomposition(
     exp_key: None or string
     """
     
-    kwargs_arg = check_arguments(adata, verbose = True, exp_key=exp_key, vel_key = vel_key, basis=basis, graph_method=graph_method)
-    exp_key,vel_key,basis = kwargs_arg['exp_key'],kwargs_arg['vel_key'],kwargs_arg['basis']
+    kwargs_arg = check_arguments(adata, verbose = True, exp_key=exp_key, vkey = vkey, basis=basis, graph_method=graph_method)
+    exp_key,vkey,basis = kwargs_arg['exp_key'],kwargs_arg['vkey'],kwargs_arg['basis']
     
-    exp_2d_key = 'X_%s' % basis
-    vel_2d_key = 'velocity_%s' % basis
+    exp_2d_key_ = 'X_%s' % basis
+    vel_2d_key_ = '%s_%s' % (vkey,basis)
     pot_vkey_ = '%s_%s' % (potential_vkey,basis)
     rot_vkey_ = '%s_%s' % (rotation_vkey,basis)
     
@@ -229,11 +229,11 @@ def Hodge_decomposition(
     else:
         exp_HD = adata.layers[exp_key]
     
-    vel_HD = adata.obsm[vel_key] if vel_key in adata.obsm.keys() else adata.layers[vel_key]
+    vel_HD = adata.obsm[vkey] if vkey in adata.obsm.keys() else adata.layers[vkey]
     if logscale_vel:
         vel_HD = (adata.obs['n_counts'].values*vel_HD.T).T/np.exp(exp_HD)
-    exp_LD = adata.obsm[exp_2d_key][:,:2] if exp_2d_key in adata.obsm.keys() else adata.layers[exp_2d_key][:,:2]
-    vel_LD = adata.obsm[vel_2d_key][:,:2] if vel_2d_key in adata.obsm.keys() else adata.layers[vel_2d_key][:,:2]
+    exp_LD = adata.obsm[exp_2d_key_][:,:2] if exp_2d_key_ in adata.obsm.keys() else adata.layers[exp_2d_key_][:,:2]
+    vel_LD = adata.obsm[vel_2d_key_][:,:2] if vel_2d_key_ in adata.obsm.keys() else adata.layers[vel_2d_key_][:,:2]
     
     ## Compute graph and edge velocities
     n_node_ = exp_HD.shape[0]
@@ -255,9 +255,13 @@ def Hodge_decomposition(
         idx_vel_HD = np.isnan(vel_HD[0])==False
         X1,X2 = exp_HD[:,idx_vel_HD][source],exp_HD[:,idx_vel_HD][target]
         V1,V2 = vel_HD[:,idx_vel_HD][source],vel_HD[:,idx_vel_HD][target]
+        V1_p,V2_p = V1*(X2-X1),V2*(X2-X1)
+        V1_p[V1_p<0] = 0
+        V2_p[V2_p<0] = 0
         Dis = np.linalg.norm(X2-X1,axis=1)
         Dis[Dis==0] = 1
-        edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis/np.sum(idx_vel_HD)
+        # edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis/np.sum(idx_vel_HD)
+        edge_vel_HD = np.sum(0.5*(V1_p+V2_p),axis=1)/Dis/np.sum(idx_vel_HD)
         # edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
         edge_vel_HD_norm = np.linalg.norm(edge_vel_HD)
         if edge_vel_HD_norm > 0: edge_vel_HD = edge_vel_HD/edge_vel_HD_norm
@@ -307,7 +311,7 @@ def Hodge_decomposition(
             vel_potential[i] = 2*(np.sum((adata.obs[potential_key][source[idx_s]].values-adata.obs[potential_key][target[idx_s]].values)*ex_s.T,axis=1) + \
                                 np.sum((adata.obs[potential_key][target[idx_t]].values-adata.obs[potential_key][source[idx_t]].values)*ex_t.T,axis=1))
         adata.obsm[pot_vkey_] = vel_potential
-        adata.obsm[rot_vkey_]  = adata.obsm[pot_vkey_]-vel_potential
+        adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
     elif graph_method == 'knn':
         knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
         knn.fit(exp_LD)
@@ -317,7 +321,7 @@ def Hodge_decomposition(
             ex_s = (exp_LD[indices[i]]-exp_LD[i])/np.linalg.norm(exp_LD[indices[i]]-exp_LD[i],ord=2)
             vel_potential[i] = -2*np.sum((adata.obs[potential_key].values[indices[i]]-adata.obs[potential_key].values[i])*ex_s.T,axis=1)
         adata.obsm[pot_vkey_] = vel_potential
-        adata.obsm[rot_vkey_]  = adata.obsm[pot_vkey_]-vel_potential
+        adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
 
     ## Contribution ratio
     log_ = {}
@@ -334,23 +338,22 @@ def Hodge_decomposition(
 def Hodge_decomposition_genes(
     adata,
     genes,
+    basis = 'umap',
+    vkey  = 'velocity',
     exp_key = None,
-    vel_key  = 'velocity',
-    exp_2d_key = 'X_umap',
-    vel_2d_key = 'velocity_umap',
     potential_key = 'Hodge_potential',
+    potential_vkey = 'potential_velocity',
     rotation_key = 'Hodge_rotation',
+    rotation_vkey = 'rotation_velocity',
     graph_key = 'CM_graph',
     graph_method = 'Delauney',
-    alpha = 0.2,
+    HD_rate = 0.2,
     n_neighbors = 10,
-    contribution_rate = 0.95,
+    contribution_rate_pca = 0.95,
     cutedge_vol  = None,
     cutedge_length = None,
     verbose = True,
-    use_HVG = True,
     logscale_vel = True,
-    n_HVG = 10,
     ):
     """
     Hodge decomposition
@@ -362,8 +365,13 @@ def Hodge_decomposition_genes(
     exp_key: None or string
     """
     
-    kwargs_arg = check_arguments(adata, exp_key=exp_key, vel_key = vel_key, exp_2d_key=exp_2d_key, vel_2d_key=vel_2d_key, graph_method=graph_method)
-    exp_key,vel_key,exp_2d_key,vel_2d_key = kwargs_arg['exp_key'],kwargs_arg['vel_key'],kwargs_arg['exp_2d_key'],kwargs_arg['vel_2d_key']
+    kwargs_arg = check_arguments(adata, verbose = True, exp_key=exp_key, vkey = vkey, basis=basis, graph_method=graph_method)
+    exp_key,vkey,basis = kwargs_arg['exp_key'],kwargs_arg['vkey'],kwargs_arg['basis']
+    
+    exp_2d_key_ = 'X_%s' % basis
+    vel_2d_key_ = '%s_%s' % (vkey,basis)
+    pot_vkey_ = '%s_%s' % (potential_vkey,basis)
+    rot_vkey_ = '%s_%s' % (rotation_vkey,basis)
     
     
     if exp_key == None:
@@ -376,10 +384,10 @@ def Hodge_decomposition_genes(
     else:
         exp_HD = adata.layers[exp_key]
     
-    vel_HD = adata.obsm[vel_key] if vel_key in adata.obsm.keys() else adata.layers[vel_key]
+    vel_HD = adata.obsm[vkey] if vkey in adata.obsm.keys() else adata.layers[vkey]
     if logscale_vel:
         vel_HD = (1e+4*vel_HD.T/adata.obs['n_counts'].values).T/np.power(2,exp_HD)
-    exp_LD = adata.obsm[exp_2d_key][:,:2] if exp_2d_key in adata.obsm.keys() else adata.layers[exp_2d_key][:,:2]
+    exp_LD = adata.obsm[exp_2d_key_][:,:2] if exp_2d_key_ in adata.obsm.keys() else adata.layers[exp_2d_key_][:,:2]
     
     n_node_ = exp_HD.shape[0]
     if graph_method == 'Delauney':
@@ -592,6 +600,7 @@ def view_quiver(
     cluster_key='clusters',
     alpha=0.3,
     fontsize = 18,
+    scale=1,
     **kwargs
     ):
     
@@ -614,13 +623,13 @@ def view_quiver(
             ax[i].scatter(adata.obsm[basis_key][idx,0],adata.obsm[basis_key][idx,1],s=200,alpha=alpha,label=cluster_set[j],color=cmap(j),zorder=0)
             ax[i].text(np.mean(adata.obsm[basis_key][idx,0]),np.mean(adata.obsm[basis_key][idx,1]),cluster_set[j],fontsize=fontsize,
                        ha='center',va='center',weight='bold')
-    ax[0].quiver(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],adata.obsm[vkey_][:,0],adata.obsm[vkey_][:,1],scale=1,zorder=1)
+    ax[0].quiver(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],adata.obsm[vkey_][:,0],adata.obsm[vkey_][:,1],scale=scale,zorder=1,**kwargs)
     ax[0].set_title('RNA velocity',fontsize=fontsize)
     ax[0].axis('off')
-    ax[1].quiver(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],adata.obsm[pot_vkey_][:,0],adata.obsm[pot_vkey_][:,1],scale=1,zorder=1,**kwargs)
+    ax[1].quiver(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],adata.obsm[pot_vkey_][:,0],adata.obsm[pot_vkey_][:,1],scale=scale,zorder=1,**kwargs)
     ax[1].set_title('Potential flow',fontsize=fontsize)
     ax[1].axis('off')
-    ax[2].quiver(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],adata.obsm[rot_vkey_][:,0],adata.obsm[rot_vkey_][:,1],scale=1,zorder=1,**kwargs)
+    ax[2].quiver(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],adata.obsm[rot_vkey_][:,0],adata.obsm[rot_vkey_][:,1],scale=scale,zorder=1,**kwargs)
     ax[2].set_title('Rotational flow',fontsize=fontsize)
     ax[2].axis('off')
 
@@ -629,7 +638,7 @@ def view_surface_genes(
     genes,
     exp_key = None,
     basis = 'umap',
-    vel_key  = 'velocity',
+    vkey  = 'velocity',
     potential_key = 'Hodge_potential',
     graph_key = 'CM_graph',
     cluster_key = None,
@@ -658,7 +667,7 @@ def view_surface_genes(
     else:
         exp_HD = adata.layers[exp_key]
     
-    vel_HD = adata.obsm[vel_key] if vel_key in adata.obsm.keys() else adata.layers[vel_key]
+    vel_HD = adata.obsm[vkey] if vkey in adata.obsm.keys() else adata.layers[vkey]
     if logscale_vel:
         vel_HD = (1e+4*vel_HD.T/adata.obs['n_counts'].values).T/np.power(2,exp_HD)
     if 'cmap' not in kwargs:
@@ -903,7 +912,7 @@ def create_dgraph_potential(
 def create_dgraph(
     adata,
     basis = 'umap',
-    vel_key  = 'velocity',
+    vkey  = 'velocity',
     cutedge_vol  = None,
     cutedge_length = None,
     ):
@@ -919,14 +928,14 @@ def create_dgraph(
     
     kwargs_arg = check_arguments(adata,
                              basis = basis,
-                             vel_key = vel_key,
+                             vkey = vkey,
                              map_key = map_key
                             )
-    basis,vel_key,map_key = kwargs_arg['basis'],kwargs_arg['vel_key'],kwargs_arg['map_key']
+    basis,vkey,map_key = kwargs_arg['basis'],kwargs_arg['vkey'],kwargs_arg['map_key']
     basis_key = 'X_%s' % basis
     
     data_pos = adata.obsm[basis_key]
-    data_vel = adata.obsm['%s_%s' % (vel_key,basis)]
+    data_vel = adata.obsm['%s_%s' % (vkey,basis)]
     triangles = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length).triangles
     tri_,idx_tri = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
     triangles = tri_.triangles[idx_tri]
