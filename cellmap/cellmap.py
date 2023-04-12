@@ -602,7 +602,6 @@ def view_quiver(
     pot_vkey_ = '%s_%s' % (potential_vkey,basis)
     rot_vkey_ = '%s_%s' % (rotation_vkey,basis)
     cluster_set = np.unique(adata.obs[cluster_key].values)
-    print(cluster_set)
     cmap = plt.get_cmap("tab20")
     color = np.zeros(adata.shape[0],dtype=int)
     for j in range(len(cluster_set)):
