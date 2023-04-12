@@ -433,6 +433,8 @@ def view(
     cutedge_vol  = None,
     cutedge_length = None,
     title = '',
+    save = False,
+    filename = 'CellMap_view',
     **kwargs
     ):
     
@@ -463,7 +465,9 @@ def view(
             print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
     ax.axis('off')
     ax.set_title(title,fontsize=18)
-    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(potential_key,fontsize=20);
+    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(potential_key,fontsize=20)
+    if save:
+        fig.savefig(filename+'.png', bbox_inches='tight')
 
 
 def view_cluster(
@@ -565,32 +569,26 @@ def view_stream(
     adata,
     basis = 'umap',
     vkey = 'velocity',
-    potential_key = 'Hodge_potential',
     potential_vkey = 'potential_velocity',
-    rotation_key = 'Hodge_rotation',
     rotation_vkey = 'rotation_velocity',
     cluster_key = 'clusters',
     density = 4,
-    alpha=0.3,
+    alpha = 0.3,
+    fontsize = 18,
+    legend_fontsize = 18,
     **kwargs
     ):
     
-    kwargs_arg = check_arguments(adata,
-                             basis = basis,
-                             potential_key = potential_key,
-                            )
+    kwargs_arg = check_arguments(adata, basis = basis)
     basis = kwargs_arg['basis']
-    basis_key = 'X_%s' % basis
-    pot_vkey_ = '%s_%s' % (potential_vkey,basis)
-    rot_vkey_ = '%s_%s' % (rotation_vkey,basis)
     
     fig,ax = plt.subplots(1,3,figsize=(24,8),tight_layout=True)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=vkey, title='RNA velocity',ax=ax[0],color=cluster_key,
-                                     show=False,density=density,alpha=alpha,fontsize=18,legend_fontsize=16, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
+                                     show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=legend_fontsize, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=potential_vkey, title='Potential flow',ax=ax[1],color=cluster_key,
-                                     show=False,density=density,alpha=alpha,fontsize=18,legend_fontsize=16, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
+                                     show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=legend_fontsize, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=rotation_vkey, title='Rotational flow',ax=ax[2],color=cluster_key,
-                                     show=False,density=density,alpha=alpha,fontsize=18,legend_fontsize=16, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
+                                     show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=legend_fontsize, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
 
 
 def view_quiver(
@@ -603,6 +601,7 @@ def view_quiver(
     alpha=0.3,
     fontsize = 18,
     scale=1,
+    quiver_rate = 0.5,
     **kwargs
     ):
     
@@ -625,13 +624,14 @@ def view_quiver(
             ax[i].scatter(adata.obsm[basis_key][idx,0],adata.obsm[basis_key][idx,1],s=200,alpha=alpha,label=cluster_set[j],color=cmap(j),zorder=0)
             ax[i].text(np.mean(adata.obsm[basis_key][idx,0]),np.mean(adata.obsm[basis_key][idx,1]),cluster_set[j],fontsize=fontsize,
                        ha='center',va='center',weight='bold')
-    ax[0].quiver(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],adata.obsm[vkey_][:,0],adata.obsm[vkey_][:,1],scale=scale,zorder=1,**kwargs)
+    idx_qvr_ = np.random.choice(np.arange(adata.shape[0]),int(quiver_rate*adata.shape[0]),replace=False)
+    ax[0].quiver(adata.obsm[basis_key][idx_qvr_,0],adata.obsm[basis_key][idx_qvr_,1],adata.obsm[vkey_][idx_qvr_,0],adata.obsm[vkey_][idx_qvr_,1],scale=scale,zorder=1,**kwargs)
     ax[0].set_title('RNA velocity',fontsize=fontsize)
     ax[0].axis('off')
-    ax[1].quiver(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],adata.obsm[pot_vkey_][:,0],adata.obsm[pot_vkey_][:,1],scale=scale,zorder=1,**kwargs)
+    ax[1].quiver(adata.obsm[basis_key][idx_qvr_,0],adata.obsm[basis_key][idx_qvr_,1],adata.obsm[pot_vkey_][idx_qvr_,0],adata.obsm[pot_vkey_][idx_qvr_,1],scale=scale,zorder=1,**kwargs)
     ax[1].set_title('Potential flow',fontsize=fontsize)
     ax[1].axis('off')
-    ax[2].quiver(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],adata.obsm[rot_vkey_][:,0],adata.obsm[rot_vkey_][:,1],scale=scale,zorder=1,**kwargs)
+    ax[2].quiver(adata.obsm[basis_key][idx_qvr_,0],adata.obsm[basis_key][idx_qvr_,1],adata.obsm[rot_vkey_][idx_qvr_,0],adata.obsm[rot_vkey_][idx_qvr_,1],scale=scale,zorder=1,**kwargs)
     ax[2].set_title('Rotational flow',fontsize=fontsize)
     ax[2].axis('off')
 

@@ -39,6 +39,7 @@ cellmap/*.csv
 cellmap/data/*
 cellmap/.ipynb_checkpoints
 tutorial/data
+tutorial/figures
 tutorial/cache
 tutorial/res
 tutorial/.ipynb_checkpoints
