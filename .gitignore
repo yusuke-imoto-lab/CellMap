@@ -43,6 +43,8 @@ tutorial/figures
 tutorial/cache
 tutorial/res
 tutorial/.ipynb_checkpoints
+figures/data/*
+figures/.ipynb_checkpoints
 
 # Others
 .vscode
