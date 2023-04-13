@@ -181,17 +181,47 @@ def cmap_earth(cv):
     cmap = matplotlib.colors.LinearSegmentedColormap.from_list('earth', colornorm, N=hight.max()-hight.min()+1)
     return cmap
 
+def edge_velocity(
+        X,
+        vel,
+        source,
+        target,
+):
+    idx_vel = np.isnan(vel[0])==False
+    X1,X2 = X[:,idx_vel][source],X[:,idx_vel][target]
+    V1,V2 = vel[:,idx_vel][source],vel[:,idx_vel][target]
+    Dis = np.linalg.norm(X2-X1,axis=1)
+    Dis[Dis==0] = 1
+    V1_p,V2_p = V1*(X2-X1),V2*(X2-X1)
+    V1_p[V1_p<0] = 0
+    V2_p[V2_p<0] = 0
+    edge_vel = np.sum(0.5*(V1_p+V2_p),axis=1)/Dis/np.sum(idx_vel)
+    edge_vel_norm = np.linalg.norm(edge_vel)
+    if edge_vel_norm > 0: edge_vel= edge_vel/edge_vel_norm
+    return edge_vel
+
+def solve_vorticity_streamline(
+    div_mat,
+    edge_vel,
+    vorticity_key = 'vorticity',
+    stream_key = 'stream_line',
+):
+    vorticity_ = np.dot(div_mat,edge_vel)
+    stream_line_ = -np.dot(lap_inv,vorticity_)
+    adata.obs[vorticity_key] = vorticity_
+    adata.obs[stream_key] = stream_line_-np.min(stream_line_)
+
 
 def Hodge_decomposition(
     adata,
     basis = 'umap',
     vkey  = 'velocity',
     exp_key = None,
-    potential_key = 'Hodge_potential',
-    potential_vkey = 'potential_velocity',
-    rotation_key = 'Hodge_rotation',
-    rotation_vkey = 'rotation_velocity',
-    graph_key = 'CM_graph',
+    potential_key = 'potential',
+    rotation_key = 'rotation',
+    vorticity_key = 'vorticity',
+    streamline_key = 'stream_line',
+    graph_key = 'CellMap_graph',
     graph_method = 'Delauney',
     HD_rate = 0.2,
     n_neighbors = 10,
@@ -216,8 +246,14 @@ def Hodge_decomposition(
     
     exp_2d_key_ = 'X_%s' % basis
     vel_2d_key_ = '%s_%s' % (vkey,basis)
-    pot_vkey_ = '%s_%s' % (potential_vkey,basis)
-    rot_vkey_ = '%s_%s' % (rotation_vkey,basis)
+    pot_vkey_ = '%s_%s_%s' % (potential_key,vkey,basis)
+    rot_vkey_ = '%s_%s_%s' % (rotation_key,vkey,basis)
+    vor_key_ = '%s_%s' % (vorticity_key,basis)
+    sl_key_ = '%s_%s' % (streamline_key,basis)
+    pot_vor_key_ = '%s_%s_%s' % (potential_key,vorticity_key,basis)
+    pot_sl_key_ = '%s_%s_%s' % (potential_key,streamline_key,basis)
+    rot_vor_key_ = '%s_%s_%s' % (rotation_key,vorticity_key,basis)
+    rot_sl_key_ = '%s_%s_%s' % (rotation_key,streamline_key,basis)
     
     if exp_key == None:
         if scipy.sparse.issparse(adata.X):
@@ -252,34 +288,12 @@ def Hodge_decomposition(
         target = np.ravel(indices)
     
     if HD_rate > 0:
-        idx_vel_HD = np.isnan(vel_HD[0])==False
-        X1,X2 = exp_HD[:,idx_vel_HD][source],exp_HD[:,idx_vel_HD][target]
-        V1,V2 = vel_HD[:,idx_vel_HD][source],vel_HD[:,idx_vel_HD][target]
-        Dis = np.linalg.norm(X2-X1,axis=1)
-        Dis[Dis==0] = 1
-        V1_p,V2_p = V1*(X2-X1),V2*(X2-X1)
-        V1_p[V1_p<0] = 0
-        V2_p[V2_p<0] = 0
-        # edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis/np.sum(idx_vel_HD)
-        edge_vel_HD = np.sum(0.5*(V1_p+V2_p),axis=1)/Dis/np.sum(idx_vel_HD)
-        # edge_vel_HD = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
-        edge_vel_HD_norm = np.linalg.norm(edge_vel_HD)
-        if edge_vel_HD_norm > 0: edge_vel_HD = edge_vel_HD/edge_vel_HD_norm
+        edge_vel_HD = edge_velocity(exp_HD,vel_HD,source,target)
     else:
         edge_vel_HD = 0
     
     if HD_rate < 1:
-        idx_vel_LD = np.isnan(vel_LD[0])==False
-        X1,X2 = exp_LD[:,idx_vel_LD][source],exp_LD[:,idx_vel_LD][target]
-        V1,V2 = vel_LD[:,idx_vel_LD][source],vel_LD[:,idx_vel_LD][target]
-        Dis = np.linalg.norm(X2-X1,axis=1)
-        Dis[Dis==0] = 1
-        V1_p,V2_p = V1*(X2-X1),V2*(X2-X1)
-        V1_p[V1_p<0] = 0
-        V2_p[V2_p<0] = 0
-        edge_vel_LD = np.sum(0.5*(V1_p+V2_p),axis=1)/Dis/2
-        edge_vel_LD_norm = np.linalg.norm(edge_vel_HD)
-        if edge_vel_LD_norm > 0: edge_vel_LD = edge_vel_LD/edge_vel_LD_norm
+        edge_vel_LD = edge_velocity(exp_LD,vel_LD,source,target)
     else:
         edge_vel_LD = 0
     
@@ -297,8 +311,6 @@ def Hodge_decomposition(
     pot_flow = -np.dot(grad_mat,potential)
     adata.obs[potential_key] = potential - np.min(potential)
 
-    rot_flow = edge_vel - pot_flow
-    adata.obs[rotation_key] = np.array([np.mean(np.vstack((rot_flow[source==i],-rot_flow[target==i]))) for i in range(adata.shape[0])])
 
     ## Compute potential & rotational flow
     vel_potential = np.zeros([adata.shape[0],2],dtype=float)
@@ -324,6 +336,28 @@ def Hodge_decomposition(
             vel_potential[i] = -2*np.sum((adata.obs[potential_key].values[indices[i]]-adata.obs[potential_key].values[i])*ex_s.T,axis=1)
         adata.obsm[pot_vkey_] = vel_potential
         adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
+    
+    ## Solve vorticity & stream line
+    vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((vel_LD[:,1],-vel_LD[:,0])).T,source,target))
+    stream_line_ = -np.dot(lap_inv,vorticity_)
+    vorticity_ = -np.dot(lap_inv,stream_line_)
+    adata.obs[vor_key_] = vorticity_
+    adata.obs[sl_key_]  = stream_line_-np.min(stream_line_)
+
+    vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[pot_vkey_][:,1],-adata.obsm[pot_vkey_][:,0])).T,source,target))
+    stream_line_ = -np.dot(lap_inv,vorticity_)
+    vorticity_ = -np.dot(lap_inv,stream_line_)
+    adata.obs[pot_vor_key_] = vorticity_
+    adata.obs[pot_sl_key_] = stream_line_-np.min(stream_line_)
+
+    vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[rot_vkey_][:,1],-adata.obsm[rot_vkey_][:,0])).T,source,target))
+    stream_line_ = -np.dot(lap_inv,vorticity_)
+    vorticity_ = -np.dot(lap_inv,stream_line_)
+    adata.obs[rot_vor_key_] = vorticity_
+    adata.obs[rot_sl_key_] = stream_line_-np.min(stream_line_)
+
+    rot_flow = edge_vel - pot_flow
+    adata.obs[rotation_key] = np.array([np.mean(np.vstack((rot_flow[source==i],-rot_flow[target==i]))) for i in range(adata.shape[0])])
 
     ## Contribution ratio
     log_ = {}
@@ -426,7 +460,7 @@ def Hodge_decomposition_genes(
 def view(
     adata,
     basis = 'umap',
-    potential_key = 'Hodge_potential',
+    color_key = 'Hodge_potential',
     graph_key = 'CM_graph',
     cluster_key = None,
     show_graph = False,
@@ -440,21 +474,20 @@ def view(
     
     kwargs_arg = check_arguments(adata,
                              basis = basis,
-                             potential_key = potential_key,
                              graph_key = graph_key,
                             )
     basis = kwargs_arg['basis']
     basis_key = 'X_%s' % basis
     
     if 'cmap' not in kwargs:
-        kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
+        kwargs['cmap'] = cmap_earth(adata.obs[color_key])
     
     data_pos = adata.obsm[basis_key]
     fig,ax = plt.subplots(figsize=(15,10))
-    sc = ax.scatter(data_pos[:,0],data_pos[:,1],c=adata.obs[potential_key],zorder=10,**kwargs)
+    sc = ax.scatter(data_pos[:,0],data_pos[:,1],c=adata.obs[color_key],zorder=10,**kwargs)
     if show_graph:
         tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
-        ax.tripcolor(tri_,adata.obs[potential_key],lw=0.5,zorder=0,alpha=0.3,cmap=kwargs['cmap'])
+        ax.tripcolor(tri_,adata.obs[color_key],lw=0.5,zorder=0,alpha=0.3,cmap=kwargs['cmap'])
     if cluster_key != None:
         if cluster_key in adata.obs.keys():
             cluster = adata.obs[cluster_key]
@@ -465,7 +498,7 @@ def view(
             print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
     ax.axis('off')
     ax.set_title(title,fontsize=18)
-    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(potential_key,fontsize=20)
+    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(color_key,fontsize=20)
     if save:
         fig.savefig(filename+'.png', bbox_inches='tight')
 
@@ -589,6 +622,50 @@ def view_stream(
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=legend_fontsize, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=rotation_vkey, title='Rotational flow',ax=ax[2],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=legend_fontsize, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
+
+def view_stream_line(
+    adata,
+    basis = 'umap',
+    contour_key = 'Stream_line',
+    graph_key = 'CM_graph',
+    cluster_key = 'clusters',
+    cutedge_vol  = None,
+    cutedge_length = None,
+    title = '',
+    save = False,
+    filename = 'CellMap_view',
+    **kwargs
+    ):
+    
+    kwargs_arg = check_arguments(adata,
+                             basis = basis,
+                             graph_key = graph_key,
+                            )
+    basis = kwargs_arg['basis']
+    basis_key = 'X_%s' % basis
+    
+    if 'cmap' not in kwargs:
+        kwargs['cmap'] = cmap_earth(adata.obs[contour_key])
+    
+    data_pos = adata.obsm[basis_key]
+    fig,ax = plt.subplots(figsize=(15,10))
+    tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
+    sc = ax.tripcolor(tri_,adata.obs[contour_key],cmap=kwargs['cmap'])
+    ax.tricontour(tri_,adata.obs[contour_key],lw=1,alpha=1,levels=20,zorder=3,colors='k',cmap=None,ls='-')
+    if cluster_key != None:
+        if cluster_key in adata.obs.keys():
+            cluster = adata.obs[cluster_key]
+            for c in np.unique(cluster):
+                # plt.scatter(data_pos[cluster == c,0],data_pos[cluster == c,1],zorder=1,alpha=0.1,s=100)
+                txt = plt.text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],c,fontsize=20,ha='center', va='center',fontweight='bold',zorder=20)
+                txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
+        else:
+            print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
+    ax.axis('off')
+    ax.set_title(title,fontsize=18)
+    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(contour_key,fontsize=20)
+    if save:
+        fig.savefig(filename+'.png', bbox_inches='tight')
 
 
 def view_quiver(
