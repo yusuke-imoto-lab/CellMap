@@ -478,7 +478,7 @@ def view(
         kwargs['cmap'] = cmap_earth(adata.obs[color_key])
     
     data_pos = adata.obsm[basis_key]
-    fig,ax = plt.subplots(figsize=(15,10))
+    fig,ax = plt.subplots(figsize=(8,6))
     sc = ax.scatter(data_pos[:,0],data_pos[:,1],c=adata.obs[color_key],zorder=10,**kwargs)
     if show_graph:
         tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
@@ -525,7 +525,7 @@ def view_cluster(
         kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
 
     data_pos = adata.obsm[basis_key]
-    fig,ax = plt.subplots(figsize=(15,10))
+    fig,ax = plt.subplots(figsize=(8,6))
     tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
     # sc = ax.tripcolor(tri_,adata.obs[potential_key],lw=0.5,zorder=0,alpha=0.75,cmap=kwargs['cmap'])
     sc = ax.tricontourf(tri_,adata.obs[potential_key],zorder=0,alpha=0.9,cmap=kwargs['cmap'],levels=100)
@@ -572,7 +572,7 @@ def view_surface(
     
     data_pos = adata.obsm[basis_key]
     tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
-    fig,ax = plt.subplots(figsize=(15,10))
+    fig,ax = plt.subplots(figsize=(8,6))
     cntr = ax.tricontourf(tri_,adata.obs[color_key],cmap=kwargs['cmap'],levels=100,zorder=2)
     fig.colorbar(cntr, shrink=0.75, orientation='vertical').set_label(color_key,fontsize=20)
     if show_graph: ax.triplot(tri_,color='w',lw=0.5,zorder=10,alpha=1)
@@ -627,7 +627,7 @@ def view_stream_line(
     title = '',
     save = False,
     filename = 'CellMap_stream_line',
-    figsize = (24,8),
+    figsize = (24,6),
     fontsize = 18,
     cbar = False,
     **kwargs
@@ -696,7 +696,7 @@ def view_quiver(
     for j in range(len(cluster_set)):
         idx = adata.obs[cluster_key] == cluster_set[j]
         color[idx] = j
-    fig,ax = plt.subplots(1,3,figsize=(24,8),tight_layout=True)
+    fig,ax = plt.subplots(1,3,figsize=(24,6),tight_layout=True)
     for i in range(3):
         for j in range(len(cluster_set)):
             idx = adata.obs[cluster_key] == cluster_set[j]
