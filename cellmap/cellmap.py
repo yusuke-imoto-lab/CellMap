@@ -314,6 +314,7 @@ def Hodge_decomposition(
 
     ## Compute potential & rotational flow
     vel_potential = np.zeros([adata.shape[0],2],dtype=float)
+    # vel_rotation = np.zeros([adata.shape[0],2],dtype=float)
     if graph_method == 'Delauney':
         tri_,idx_tri = create_graph(exp_LD[:,0],exp_LD[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
         source, target = np.ravel(tri_.triangles[idx_tri][:,[0,1,2]]),np.ravel(tri_.triangles[idx_tri][:,[1,2,0]])
@@ -324,8 +325,11 @@ def Hodge_decomposition(
             ex_t = -(exp_LD[target[idx_t]]-exp_LD[source[idx_t]])/np.linalg.norm(exp_LD[target[idx_t]]-exp_LD[source[idx_t]],ord=2)
             vel_potential[i] = 2*(np.sum((adata.obs[potential_key][source[idx_s]].values-adata.obs[potential_key][target[idx_s]].values)*ex_s.T,axis=1) + \
                                 np.sum((adata.obs[potential_key][target[idx_t]].values-adata.obs[potential_key][source[idx_t]].values)*ex_t.T,axis=1))
+            # vel_rotation[i] = 2*(np.sum((adata.obs[rotation_key][source[idx_s]].values-adata.obs[rotation_key][target[idx_s]].values)*ex_s.T,axis=1) + \
+            #                     np.sum((adata.obs[rotation_key][target[idx_t]].values-adata.obs[rotation_key][source[idx_t]].values)*ex_t.T,axis=1))
         adata.obsm[pot_vkey_] = vel_potential
         adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
+        # adata.obsm[rot_vkey_] = vel_rotation
     elif graph_method == 'knn':
         knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
         knn.fit(exp_LD)
@@ -458,27 +462,35 @@ def view(
     adata,
     basis = 'umap',
     color_key = 'potential',
-    cluster_key = None,
-    show_graph = False,
+    cluster_key = 'clusters',
+    show_graph = True,
     cutedge_vol  = None,
     cutedge_length = None,
     title = '',
     save = False,
     filename = 'CellMap_view',
+    figsize = None,
+    fontsize_text = 16,
+    cbar = True,
     **kwargs
     ):
     
-    kwargs_arg = check_arguments(adata,
-                             basis = basis,
-                            )
+    kwargs_arg = check_arguments(adata, basis=basis)
     basis = kwargs_arg['basis']
     basis_key = 'X_%s' % basis
     
     if 'cmap' not in kwargs:
         kwargs['cmap'] = cmap_earth(adata.obs[color_key])
+
+    if cluster_key not in adata.obs.keys():
+        cluster_key = None
     
+    if figsize == None:
+        figsize = (10,6) if cbar else (8,6)
+        
+
     data_pos = adata.obsm[basis_key]
-    fig,ax = plt.subplots(figsize=(8,6))
+    fig,ax = plt.subplots(figsize=figsize)
     sc = ax.scatter(data_pos[:,0],data_pos[:,1],c=adata.obs[color_key],zorder=10,**kwargs)
     if show_graph:
         tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
@@ -487,22 +499,21 @@ def view(
         if cluster_key in adata.obs.keys():
             cluster = adata.obs[cluster_key]
             for c in np.unique(cluster):
-                txt = plt.text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],c,fontsize=20,ha='center', va='center',fontweight='bold',zorder=20)
+                txt = plt.text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],c,fontsize=fontsize_text,ha='center', va='center',fontweight='bold',zorder=20)
                 txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
         else:
             print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
     ax.axis('off')
     ax.set_title(title,fontsize=18)
-    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(color_key,fontsize=20)
-    if save:
-        fig.savefig(filename+'.png', bbox_inches='tight')
+    if cbar: plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(color_key,fontsize=20)
+    if save: fig.savefig(filename+'.png', bbox_inches='tight')
 
 
 def view_cluster(
     adata,
     basis = 'umap',
     potential_key = 'potential',
-    graph_key = 'CM_graph',
+    graph_key = 'CellMap_graph',
     cluster_key = 'clusters',
     show_graph = True,
     cutedge_vol  = None,
@@ -597,6 +608,7 @@ def view_stream(
     potential_vkey = 'potential_velocity',
     rotation_vkey = 'rotation_velocity',
     cluster_key = 'clusters',
+    figsize=(24,6),
     density = 4,
     alpha = 0.3,
     fontsize = 18,
@@ -607,7 +619,7 @@ def view_stream(
     kwargs_arg = check_arguments(adata, basis = basis)
     basis = kwargs_arg['basis']
     
-    fig,ax = plt.subplots(1,3,figsize=(24,8),tight_layout=True)
+    fig,ax = plt.subplots(1,3,figsize=figsize,tight_layout=True)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=vkey, title='RNA velocity',ax=ax[0],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=legend_fontsize, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=potential_vkey, title='Potential flow',ax=ax[1],color=cluster_key,
@@ -721,7 +733,7 @@ def view_surface_genes(
     basis = 'umap',
     vkey  = 'velocity',
     potential_key = 'potential',
-    graph_key = 'CM_graph',
+    graph_key = 'CellMap_graph',
     cluster_key = None,
     show_graph = False,
     cutedge_vol  = None,
@@ -787,7 +799,7 @@ def view_surface_3D(
     adata,
     basis = 'umap',
     potential_key = 'potential',
-    graph_key = 'CM_graph',
+    graph_key = 'CellMap_graph',
     cluster_key = None,
     cutedge_vol  = 1,
     cutedge_length = 1,
@@ -834,7 +846,7 @@ def view_surface_3D_cluster(
     adata,
     basis = 'umap',
     potential_key = 'potential',
-    graph_key = 'CM_graph',
+    graph_key = 'CellMap_graph',
     cluster_key = 'clusters',
     cutedge_vol  = 1,
     cutedge_length = 1,
@@ -953,7 +965,7 @@ def create_dgraph_potential(
     basis = 'umap',
     map_key = None,
     potential_key = 'potential',
-    graph_key = 'CM_graph',
+    graph_key = 'CellMap_graph',
     cutedge_vol  = None,
     cutedge_length = None,
     ):
