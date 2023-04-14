@@ -223,7 +223,7 @@ def Hodge_decomposition(
     streamline_key = 'stream_line',
     graph_key = 'CellMap_graph',
     graph_method = 'Delauney',
-    HD_rate = 0.2,
+    HD_rate = 0.0,
     n_neighbors = 10,
     contribution_rate_pca = 0.95,
     cutedge_vol  = None,
@@ -340,19 +340,19 @@ def Hodge_decomposition(
     ## Solve vorticity & stream line
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((vel_LD[:,1],-vel_LD[:,0])).T,source,target))
     stream_line_ = -np.dot(lap_inv,vorticity_)
-    vorticity_ = -np.dot(lap_inv,stream_line_)
+    # vorticity_ = -np.dot(lap_inv,stream_line_)
     adata.obs[vor_key_] = vorticity_
     adata.obs[sl_key_]  = stream_line_-np.min(stream_line_)
 
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[pot_vkey_][:,1],-adata.obsm[pot_vkey_][:,0])).T,source,target))
     stream_line_ = -np.dot(lap_inv,vorticity_)
-    vorticity_ = -np.dot(lap_inv,stream_line_)
+    # vorticity_ = -np.dot(lap_inv,stream_line_)
     adata.obs[pot_vor_key_] = vorticity_
     adata.obs[pot_sl_key_] = stream_line_-np.min(stream_line_)
 
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[rot_vkey_][:,1],-adata.obsm[rot_vkey_][:,0])).T,source,target))
     stream_line_ = -np.dot(lap_inv,vorticity_)
-    vorticity_ = -np.dot(lap_inv,stream_line_)
+    # vorticity_ = -np.dot(lap_inv,stream_line_)
     adata.obs[rot_vor_key_] = vorticity_
     adata.obs[rot_sl_key_] = stream_line_-np.min(stream_line_)
 
@@ -377,15 +377,12 @@ def Hodge_decomposition_genes(
     basis = 'umap',
     vkey  = 'velocity',
     exp_key = None,
-    potential_key = 'Hodge_potential',
+    potential_key = 'potential',
     potential_vkey = 'potential_velocity',
-    rotation_key = 'Hodge_rotation',
+    rotation_key = 'rotation',
     rotation_vkey = 'rotation_velocity',
-    graph_key = 'CM_graph',
     graph_method = 'Delauney',
-    HD_rate = 0.2,
     n_neighbors = 10,
-    contribution_rate_pca = 0.95,
     cutedge_vol  = None,
     cutedge_length = None,
     verbose = True,
@@ -460,8 +457,7 @@ def Hodge_decomposition_genes(
 def view(
     adata,
     basis = 'umap',
-    color_key = 'Hodge_potential',
-    graph_key = 'CM_graph',
+    color_key = 'potential',
     cluster_key = None,
     show_graph = False,
     cutedge_vol  = None,
@@ -474,7 +470,6 @@ def view(
     
     kwargs_arg = check_arguments(adata,
                              basis = basis,
-                             graph_key = graph_key,
                             )
     basis = kwargs_arg['basis']
     basis_key = 'X_%s' % basis
@@ -506,7 +501,7 @@ def view(
 def view_cluster(
     adata,
     basis = 'umap',
-    potential_key = 'Hodge_potential',
+    potential_key = 'potential',
     graph_key = 'CM_graph',
     cluster_key = 'clusters',
     show_graph = True,
@@ -557,8 +552,7 @@ def view_cluster(
 def view_surface(
     adata,
     basis = 'umap',
-    potential_key = 'Hodge_potential',
-    graph_key = 'CM_graph',
+    color_key = 'potential',
     cluster_key = None,
     show_graph = False,
     cutedge_vol  = None,
@@ -569,20 +563,18 @@ def view_surface(
     
     kwargs_arg = check_arguments(adata,
                              basis = basis,
-                             potential_key = potential_key,
-                             graph_key = graph_key,
                             )
     basis = kwargs_arg['basis']
     basis_key = 'X_%s' % basis
 
     if 'cmap' not in kwargs:
-        kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
+        kwargs['cmap'] = cmap_earth(adata.obs[color_key])
     
     data_pos = adata.obsm[basis_key]
     tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
     fig,ax = plt.subplots(figsize=(15,10))
-    cntr = ax.tricontourf(tri_,adata.obs[potential_key],cmap=kwargs['cmap'],levels=100,zorder=2)
-    fig.colorbar(cntr, shrink=0.75, orientation='vertical').set_label(potential_key,fontsize=20)
+    cntr = ax.tricontourf(tri_,adata.obs[color_key],cmap=kwargs['cmap'],levels=100,zorder=2)
+    fig.colorbar(cntr, shrink=0.75, orientation='vertical').set_label(color_key,fontsize=20)
     if show_graph: ax.triplot(tri_,color='w',lw=0.5,zorder=10,alpha=1)
     ax.set_xlim(np.min(data_pos[:,0])-0.02*(np.max(data_pos[:,0])-np.min(data_pos[:,0])),np.max(data_pos[:,0])+0.02*(np.max(data_pos[:,0])-np.min(data_pos[:,0])))
     ax.set_ylim(np.min(data_pos[:,1])-0.02*(np.max(data_pos[:,1])-np.min(data_pos[:,1])),np.max(data_pos[:,1])+0.02*(np.max(data_pos[:,1])-np.min(data_pos[:,1])))
@@ -627,7 +619,6 @@ def view_stream_line(
     adata,
     basis = 'umap',
     contour_key = 'Stream_line',
-    graph_key = 'CM_graph',
     cluster_key = 'clusters',
     cutedge_vol  = None,
     cutedge_length = None,
@@ -637,10 +628,7 @@ def view_stream_line(
     **kwargs
     ):
     
-    kwargs_arg = check_arguments(adata,
-                             basis = basis,
-                             graph_key = graph_key,
-                            )
+    kwargs_arg = check_arguments(adata,basis = basis)
     basis = kwargs_arg['basis']
     basis_key = 'X_%s' % basis
     
@@ -718,7 +706,7 @@ def view_surface_genes(
     exp_key = None,
     basis = 'umap',
     vkey  = 'velocity',
-    potential_key = 'Hodge_potential',
+    potential_key = 'potential',
     graph_key = 'CM_graph',
     cluster_key = None,
     show_graph = False,
@@ -784,7 +772,7 @@ def view_surface_genes(
 def view_surface_3D(
     adata,
     basis = 'umap',
-    potential_key = 'Hodge_potential',
+    potential_key = 'potential',
     graph_key = 'CM_graph',
     cluster_key = None,
     cutedge_vol  = 1,
@@ -831,7 +819,7 @@ def view_surface_3D(
 def view_surface_3D_cluster(
     adata,
     basis = 'umap',
-    potential_key = 'Hodge_potential',
+    potential_key = 'potential',
     graph_key = 'CM_graph',
     cluster_key = 'clusters',
     cutedge_vol  = 1,
@@ -897,7 +885,7 @@ def write(
     adata,
     filename = 'CellMap',
     basis = 'umap',
-    potential_key = 'Hodge_potential',
+    potential_key = 'potential',
     cluster_key = 'clusters',
     obs_key = None,
     genes = None,
@@ -950,7 +938,7 @@ def create_dgraph_potential(
     adata,
     basis = 'umap',
     map_key = None,
-    potential_key = 'Hodge_potential',
+    potential_key = 'potential',
     graph_key = 'CM_graph',
     cutedge_vol  = None,
     cutedge_length = None,
