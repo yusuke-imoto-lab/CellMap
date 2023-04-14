@@ -618,13 +618,18 @@ def view_stream(
 def view_stream_line(
     adata,
     basis = 'umap',
-    contour_key = 'Stream_line',
+    contour_key = 'stream_line',
     cluster_key = 'clusters',
+    potential_key = 'potential',
+    rotation_key = 'rotation',
     cutedge_vol  = None,
     cutedge_length = None,
     title = '',
     save = False,
-    filename = 'CellMap_view',
+    filename = 'CellMap_stream_line',
+    figsize = (24,8),
+    fontsize = 18,
+    cbar = False,
     **kwargs
     ):
     
@@ -632,28 +637,37 @@ def view_stream_line(
     basis = kwargs_arg['basis']
     basis_key = 'X_%s' % basis
     
-    if 'cmap' not in kwargs:
-        kwargs['cmap'] = cmap_earth(adata.obs[contour_key])
+    key_ = '%s_%s' % (contour_key,basis)
+    pot_key_ = '%s_%s_%s' % (potential_key,contour_key,basis)
+    rot_key_ = '%s_%s_%s' % (rotation_key,contour_key,basis)
+    
     
     data_pos = adata.obsm[basis_key]
-    fig,ax = plt.subplots(figsize=(15,10))
     tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
-    sc = ax.tripcolor(tri_,adata.obs[contour_key],cmap=kwargs['cmap'])
-    ax.tricontour(tri_,adata.obs[contour_key],lw=1,alpha=1,levels=20,zorder=3,colors='k',cmap=None,ls='-')
-    if cluster_key != None:
-        if cluster_key in adata.obs.keys():
-            cluster = adata.obs[cluster_key]
-            for c in np.unique(cluster):
-                # plt.scatter(data_pos[cluster == c,0],data_pos[cluster == c,1],zorder=1,alpha=0.1,s=100)
-                txt = plt.text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],c,fontsize=20,ha='center', va='center',fontweight='bold',zorder=20)
-                txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
+    
+    contour_keys = [key_, pot_key_, rot_key_]
+    camps = [cmap_earth(adata.obs[key_]),'rainbow','coolwarm']
+    titles = ['RNA velocity','Potential flow','Rotational flow']
+    
+    fig,ax = plt.subplots(1,3,figsize=figsize,tight_layout=True)
+    for i in range(3):
+        ax[i].axis('off')
+        ax[i].set_title(title,fontsize=18)
+        sc = ax[i].tripcolor(tri_,adata.obs[contour_keys[i]],cmap=camps[i])
+        ax[i].tricontour(tri_,adata.obs[contour_keys[i]],lw=0.2,alpha=0.2,levels=75,zorder=3,colors='k',cmap=None,ls='-')
+        ax[i].tricontour(tri_,adata.obs[contour_keys[i]],lw=1,alpha=1,levels=15,zorder=3,colors='k',cmap=None,ls='-')
+        if cbar: plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(contour_key,fontsize=20)
+        ax[i].set_title(titles[i],fontsize=fontsize)
+        if cluster_key != None:
+            if cluster_key in adata.obs.keys():
+                cluster = adata.obs[cluster_key]
+                for c in np.unique(cluster):
+                    # plt.scatter(data_pos[cluster == c,0],data_pos[cluster == c,1],zorder=1,alpha=0.1,s=100)
+                    txt = ax[i].text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],c,fontsize=20,ha='center', va='center',fontweight='bold',zorder=20)
+                    txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
         else:
             print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
-    ax.axis('off')
-    ax.set_title(title,fontsize=18)
-    plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(contour_key,fontsize=20)
-    if save:
-        fig.savefig(filename+'.png', bbox_inches='tight')
+    if save: fig.savefig(filename+'.png', bbox_inches='tight')
 
 
 def view_quiver(
