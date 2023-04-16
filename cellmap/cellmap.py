@@ -2,7 +2,7 @@ import anndata
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib import patheffects as PathEffect
+from matplotlib import patheffects as PathEffects
 import matplotlib.cm
 import scipy
 import sklearn.preprocessing
