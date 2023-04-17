@@ -194,6 +194,7 @@ def edge_velocity(
         vel,
         source,
         target,
+        normalization = True,
 ):
     idx_vel = np.isnan(vel[0])==False
     X1,X2 = X[:,idx_vel][source],X[:,idx_vel][target]
@@ -204,8 +205,9 @@ def edge_velocity(
     V1_p[V1_p<0] = 0
     V2_p[V2_p<0] = 0
     edge_vel = np.sum(0.5*(V1_p+V2_p),axis=1)/Dis/np.sum(idx_vel)
-    edge_vel_norm = np.linalg.norm(edge_vel)
-    if edge_vel_norm > 0: edge_vel= edge_vel/edge_vel_norm
+    if normalization:
+        edge_vel_norm = np.linalg.norm(edge_vel)
+        if edge_vel_norm > 0: edge_vel= edge_vel/edge_vel_norm
     return edge_vel
 
 def solve_vorticity_streamline(
@@ -331,7 +333,8 @@ def Hodge_decomposition(
             idx_t = target == i
             ex_s = -(exp_LD[source[idx_s]]-exp_LD[target[idx_s]])/np.linalg.norm(exp_LD[source[idx_s]]-exp_LD[target[idx_s]],ord=2)
             ex_t = -(exp_LD[target[idx_t]]-exp_LD[source[idx_t]])/np.linalg.norm(exp_LD[target[idx_t]]-exp_LD[source[idx_t]],ord=2)
-            vel_potential[i] = 2*(np.sum((adata.obs[potential_key][source[idx_s]].values-adata.obs[potential_key][target[idx_s]].values)*ex_s.T,axis=1) + \
+            edge_vel = edge_velocity(exp_LD,vel_LD,source,target,normalization=False)
+            vel_potential[i] = 2*np.linalg.norm(edge_vel)*(np.sum((adata.obs[potential_key][source[idx_s]].values-adata.obs[potential_key][target[idx_s]].values)*ex_s.T,axis=1) + \
                                 np.sum((adata.obs[potential_key][target[idx_t]].values-adata.obs[potential_key][source[idx_t]].values)*ex_t.T,axis=1))
             # vel_rotation[i] = 2*(np.sum((adata.obs[rotation_key][source[idx_s]].values-adata.obs[rotation_key][target[idx_s]].values)*ex_s.T,axis=1) + \
             #                     np.sum((adata.obs[rotation_key][target[idx_t]].values-adata.obs[rotation_key][source[idx_t]].values)*ex_t.T,axis=1))
@@ -1075,35 +1078,63 @@ def write(
     adata,
     filename = 'CellMap',
     basis = 'umap',
+    vkey  = 'velocity',
+    exp_key = None,
     potential_key = 'potential',
+    rotation_key = 'rotation',
+    vorticity_key = 'vorticity',
+    streamline_key = 'stream_line',
     cluster_key = 'clusters',
     obs_key = None,
     genes = None,
-    expression_key = None,
     use_HVG = True,
     n_HVG = 10,
 ):
-    kwargs = check_arguments(adata,basis=basis,potential_key=potential_key,cluster_key=cluster_key,obs_key=obs_key,genes=genes,expression_key=expression_key)
+    kwargs = check_arguments(adata,basis=basis,potential_key=potential_key,cluster_key=cluster_key,obs_key=obs_key,genes=genes,expression_key=exp_key)
     basis,obs_key,genes = kwargs['basis'],kwargs['obs_key'],kwargs['genes']
     basis_key = 'X_%s' % basis
+    vkey_ = '%s_%s' % (vkey,basis)
+    pot_key_ = '%s' % (potential_key)
+    rot_key_ = '%s' % (rotation_key)
+    pot_vkey_ = '%s_%s_%s' % (potential_key,vkey,basis)
+    rot_vkey_ = '%s_%s_%s' % (rotation_key,vkey,basis)
+    vol_key_ = '%s_%s_%s' % (potential_key,vorticity_key,basis)
+    sl_key_ = '%s_%s_%s' % (potential_key,streamline_key,basis)
+    pot_vol_key_ = '%s_%s_%s' % (potential_key,vorticity_key,basis)
+    pot_sl_key_ = '%s_%s_%s' % (potential_key,streamline_key,basis)
+    rot_vol_key_ = '%s_%s_%s' % (rotation_key,vorticity_key,basis)
+    rot_sl_key_ = '%s_%s_%s' % (rotation_key,streamline_key,basis)
     
-    if expression_key == None:
+    
+    if exp_key == None:
         if scipy.sparse.issparse(adata.X): data_exp = adata.X.toarray()
         else: data_exp = adata.X
     else:
-        data_exp = adata.layers[expression_key]
+        data_exp = adata.layers[exp_key]
     
     pd_out = pd.DataFrame({
         'X':adata.obsm[basis_key][:,0],'Y':adata.obsm[basis_key][:,1],
-        'Potential':adata.obs[potential_key],
-        'Annotation':adata.obs[cluster_key]
+        'Potential':adata.obs[pot_key_],
+        'Annotation':adata.obs[cluster_key],
+        'Rotation':adata.obs[rot_key_],
+        'Streamline_Original':adata.obs[sl_key_],
+        'Streamline_Potential':adata.obs[pot_sl_key_],
+        'Streamline_Rotation':adata.obs[rot_sl_key_],
+        'Vorticity_Original':adata.obs[vol_key_],
+        'Vorticity_Potential':adata.obs[pot_vol_key_],
+        'Vorticity_Rotation':adata.obs[rot_vol_key_],
+        'Velocity_x':adata.obsm[vkey_][:,0],
+        'Velocity_y':adata.obsm[vkey_][:,1],
+        'Velocity_Potential_x':adata.obsm[pot_vkey_][:,0],
+        'Velocity_Potential_y':adata.obsm[pot_vkey_][:,1],
+        'Velocity_Rotation_x':adata.obsm[rot_vkey_][:,0],
+        'Velocity_Rotation_y':adata.obsm[rot_vkey_][:,1],
     },index=adata.obs.index)
     pd_out.index.name='CellID'
     
     if obs_key != None:
         for arg in obs_key:
             pd_out.insert(len(pd_out.columns), arg, adata.obs[arg])
-    
     
     if genes != None:
         for gene in genes:
