@@ -5,6 +5,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import patheffects as PathEffects
 import matplotlib.cm
+import networkx as nx
 import scipy
 import sklearn.preprocessing
 import sklearn.neighbors
@@ -1254,3 +1255,98 @@ def create_dgraph(
         graph_[tuple(triangles[weight>min_weight][:,[id_x,id_y]].T[::-1])] = 1
         graph_[tuple(triangles[weight<-min_weight][:,[id_y,id_x]].T[::-1])] = 1
     return scipy.sparse.coo_matrix(graph_)
+
+
+
+def view_trajectory(
+    adata,
+    source_cluster,
+    target_clusters,
+    n_cells = 50,
+    register = 10,
+    basis = 'umap',
+    potential_key = 'potential',
+    cluster_key = 'clusters',
+    graph_method = 'Delauney',
+    n_neighbors = 10,
+    contribution_rate_pca = 0.95,
+    cutedge_vol  = None,
+    cutedge_length = None,
+):
+
+    # kwargs_arg = check_arguments(adata, verbose = True, exp_key=exp_key, vkey = vkey, basis=basis, graph_method=graph_method)
+    # exp_key,vkey,basis = kwargs_arg['exp_key'],kwargs_arg['vkey'],kwargs_arg['basis']
+
+    basis_key = 'X_%s' % basis
+    data_pos = adata.obsm[basis_key]
+
+    ## Compute graph and edge velocities
+    if graph_method == 'Delauney':
+        tri_,idx_tri = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
+        source, target = np.ravel(tri_.triangles[idx_tri][:,[0,1,2]]),np.ravel(tri_.triangles[idx_tri][:,[1,2,0]])
+    elif graph_method == 'knn':
+        pca = sklearn.decomposition.PCA()
+        exp_HD_pca = pca.fit_transform(data_pos)
+        n_pca = np.min(np.arange(len(pca.explained_variance_ratio_))[np.cumsum(pca.explained_variance_ratio_)>contribution_rate_pca])
+        knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
+        knn.fit(exp_HD_pca[:,:n_pca])
+        distances, indices = knn.kneighbors(exp_HD_pca[:,:n_pca])
+        distances, indices = distances[:,1:], indices[:,1:]
+        source = np.ravel(np.repeat(np.arange(data_pos.shape[0]).reshape((-1, 1)),n_neighbors,axis=1))
+        target = np.ravel(indices)
+
+    G = nx.DiGraph()
+
+    def cost(data_pos,s,t,g,reg):
+        return np.exp(-g*reg)*np.linalg.norm(data_pos[s]-data_pos[t])
+    grad_ = adata.obs[potential_key][source].values - adata.obs[potential_key][target].values
+    G.add_weighted_edges_from([(int(s),int(t),cost(data_pos,int(s),int(t),g,register)) for s,t,g in np.vstack((source[grad_>0],target[grad_>0],grad_[grad_>0])).T])
+    G.add_weighted_edges_from([(int(t),int(s),cost(data_pos,int(s),int(t),-g,register)) for s,t,g in np.vstack((source[grad_>0],target[grad_>0],grad_[grad_>0])).T])
+    G.add_weighted_edges_from([(int(t),int(s),cost(data_pos,int(s),int(t),-g,register)) for s,t,g in np.vstack((source[grad_<0],target[grad_<0],grad_[grad_<0])).T])
+    G.add_weighted_edges_from([(int(s),int(t),cost(data_pos,int(s),int(t),g,register)) for s,t,g in np.vstack((source[grad_<0],target[grad_<0],grad_[grad_<0])).T])
+    
+    cmap_ = plt.get_cmap("tab10")
+    figsize = (10,8)
+    fig,ax = plt.subplots(figsize=figsize)
+    ax.triplot(tri_,color='gray',zorder=0,alpha=0.2,lw=1)
+    clusters_ = adata.obs[cluster_key]
+    idx_ = clusters_ == source_cluster
+    ax.scatter(data_pos[idx_,0],data_pos[idx_,1],color=cmap_(0),zorder=10,marker='o',alpha=0.2,s=5,label=source_cluster+' (source)')
+    for i_trg_ in range(len(target_clusters)):
+        idx_ = clusters_ == target_clusters[i_trg_]
+        ax.scatter(data_pos[idx_,0],data_pos[idx_,1],color=cmap_(i_trg_+1),zorder=10,marker='o',alpha=0.2,s=5,label=target_clusters[i_trg_]+' (target)')
+    leg = ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=12,markerscale=3)
+    for lh in leg.legendHandles: lh.set_alpha(1)
+
+    data_src_ = data_pos[adata.obs[cluster_key].values == source_cluster]
+    center_src_ = np.mean(data_src_,axis=0)
+    centrality_src_ = np.linalg.norm(data_src_-center_src_,axis=1)
+    src_set_all_ = np.arange(adata.shape[0])[adata.obs[cluster_key].values == source_cluster][np.argsort(centrality_src_)]
+    n_src_ = sum(adata.obs[cluster_key].values == source_cluster)
+    for i_trg_ in range(len(target_clusters)):
+        target_cluster = target_clusters[i_trg_]
+        n_cells_ = np.min([n_cells,sum(adata.obs[cluster_key].values == source_cluster),sum(adata.obs[cluster_key].values == target_cluster)])
+        data_trg_ = data_pos[adata.obs[cluster_key].values == target_cluster]
+        center_trg_ = np.mean(data_trg_,axis=0)
+        centrality_trg_ = np.linalg.norm(data_trg_-center_trg_,axis=1)
+        n_trg_ = sum(adata.obs[cluster_key].values == target_cluster)
+        idx_trg_ = np.arange(0,n_src_,int(n_trg_/n_cells_))[:n_cells_]
+        trg_set_ = np.arange(adata.shape[0])[adata.obs[cluster_key].values == target_cluster][np.argsort(centrality_trg_)][idx_trg_]
+        idx_src_ = np.arange(0,n_src_,int(n_src_/n_cells_))[:n_cells_]
+        src_set_ = src_set_all_[idx_src_]
+
+        pathes,edges,weights,dists  = [],[],[],[]
+        for src_,trg_ in np.vstack((src_set_,trg_set_)).T:
+            path = nx.dijkstra_path(G, source=src_, target=trg_, weight='weight')
+            pathes.append(path)
+            edges.append(np.array([[path[i], path[i+1]] for i in range(len(path)-1)]))
+            weights.append((sum([G[path[i]][path[i+1]]['weight'] for i in range(len(path)-1)]))/sum([np.linalg.norm(data_pos[path[i]]-data_pos[path[i+1]]) for i in range(len(path)-1)]))
+            dists.append(sum([np.linalg.norm(data_pos[path[i]]-data_pos[path[i+1]]) for i in range(len(path)-1)]))
+        
+        ax.scatter(data_pos[src_set_,0],data_pos[src_set_,1],color=cmap_(0),zorder=20,marker='o',s=20)
+        ax.scatter(data_pos[trg_set_,0],data_pos[trg_set_,1],color=cmap_(i_trg_+1),zorder=20,marker='o',s=20)
+        for i in range(n_cells_):
+            src_,trg_ = src_set_[i],trg_set_[i]
+            for s,t in edges[i]:
+                ax.plot([data_pos[s,0],data_pos[t,0]],[data_pos[s,1],data_pos[t,1]],color=cmap_(i_trg_+1),zorder=10)
+    ax.axis('off')
