@@ -1272,6 +1272,7 @@ def view_trajectory(
     contribution_rate_pca = 0.95,
     cutedge_vol  = None,
     cutedge_length = None,
+    return_path = False
 ):
 
     # kwargs_arg = check_arguments(adata, verbose = True, exp_key=exp_key, vkey = vkey, basis=basis, graph_method=graph_method)
@@ -1315,7 +1316,7 @@ def view_trajectory(
     for i_trg_ in range(len(target_clusters)):
         idx_ = clusters_ == target_clusters[i_trg_]
         ax.scatter(data_pos[idx_,0],data_pos[idx_,1],color=cmap_(i_trg_+1),zorder=10,marker='o',alpha=0.2,s=5,label=target_clusters[i_trg_]+' (target)')
-    leg = ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0, fontsize=12,markerscale=3)
+    leg = ax.legend(bbox_to_anchor=(1.05, 0.5), loc='center left', borderaxespad=0, fontsize=12,markerscale=3)
     for lh in leg.legendHandles: lh.set_alpha(1)
 
     data_src_ = data_pos[adata.obs[cluster_key].values == source_cluster]
@@ -1323,6 +1324,7 @@ def view_trajectory(
     centrality_src_ = np.linalg.norm(data_src_-center_src_,axis=1)
     src_set_all_ = np.arange(adata.shape[0])[adata.obs[cluster_key].values == source_cluster][np.argsort(centrality_src_)]
     n_src_ = sum(adata.obs[cluster_key].values == source_cluster)
+    path_all = []
     for i_trg_ in range(len(target_clusters)):
         target_cluster = target_clusters[i_trg_]
         n_cells_ = np.min([n_cells,sum(adata.obs[cluster_key].values == source_cluster),sum(adata.obs[cluster_key].values == target_cluster)])
@@ -1330,7 +1332,7 @@ def view_trajectory(
         center_trg_ = np.mean(data_trg_,axis=0)
         centrality_trg_ = np.linalg.norm(data_trg_-center_trg_,axis=1)
         n_trg_ = sum(adata.obs[cluster_key].values == target_cluster)
-        idx_trg_ = np.arange(0,n_src_,int(n_trg_/n_cells_))[:n_cells_]
+        idx_trg_ = np.arange(0,n_trg_,int(n_trg_/n_cells_))[:n_cells_]
         trg_set_ = np.arange(adata.shape[0])[adata.obs[cluster_key].values == target_cluster][np.argsort(centrality_trg_)][idx_trg_]
         idx_src_ = np.arange(0,n_src_,int(n_src_/n_cells_))[:n_cells_]
         src_set_ = src_set_all_[idx_src_]
@@ -1342,7 +1344,7 @@ def view_trajectory(
             edges.append(np.array([[path[i], path[i+1]] for i in range(len(path)-1)]))
             weights.append((sum([G[path[i]][path[i+1]]['weight'] for i in range(len(path)-1)]))/sum([np.linalg.norm(data_pos[path[i]]-data_pos[path[i+1]]) for i in range(len(path)-1)]))
             dists.append(sum([np.linalg.norm(data_pos[path[i]]-data_pos[path[i+1]]) for i in range(len(path)-1)]))
-        
+        path_all.append(pathes)
         ax.scatter(data_pos[src_set_,0],data_pos[src_set_,1],color=cmap_(0),zorder=20,marker='o',s=20)
         ax.scatter(data_pos[trg_set_,0],data_pos[trg_set_,1],color=cmap_(i_trg_+1),zorder=20,marker='o',s=20)
         for i in range(n_cells_):
@@ -1350,3 +1352,4 @@ def view_trajectory(
             for s,t in edges[i]:
                 ax.plot([data_pos[s,0],data_pos[t,0]],[data_pos[s,1],data_pos[t,1]],color=cmap_(i_trg_+1),zorder=10)
     ax.axis('off')
+    if return_path: return path_all
