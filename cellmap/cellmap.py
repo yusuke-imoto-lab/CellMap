@@ -1,3 +1,4 @@
+from adjustText import adjust_text
 import anndata
 import numpy as np
 import matplotlib
@@ -336,11 +337,8 @@ def Hodge_decomposition(
             edge_vel = edge_velocity(exp_LD,vel_LD,source,target,normalization=False)
             vel_potential[i] = 2*np.linalg.norm(edge_vel)*(np.sum((adata.obs[potential_key][source[idx_s]].values-adata.obs[potential_key][target[idx_s]].values)*ex_s.T,axis=1) + \
                                 np.sum((adata.obs[potential_key][target[idx_t]].values-adata.obs[potential_key][source[idx_t]].values)*ex_t.T,axis=1))
-            # vel_rotation[i] = 2*(np.sum((adata.obs[rotation_key][source[idx_s]].values-adata.obs[rotation_key][target[idx_s]].values)*ex_s.T,axis=1) + \
-            #                     np.sum((adata.obs[rotation_key][target[idx_t]].values-adata.obs[rotation_key][source[idx_t]].values)*ex_t.T,axis=1))
         adata.obsm[pot_vkey_] = vel_potential
         adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
-        # adata.obsm[rot_vkey_] = vel_rotation
     elif graph_method == 'knn':
         knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
         knn.fit(exp_LD)
@@ -623,14 +621,31 @@ def view_stream(
     
     kwargs_arg = check_arguments(adata, basis = basis)
     basis = kwargs_arg['basis']
+    basis_key = 'X_%s' % basis
+    data_pos = adata.obsm[basis_key]
+    cluster = adata.obs[cluster_key]
     
     fig,ax = plt.subplots(1,3,figsize=figsize,tight_layout=True)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=vkey, title='RNA velocity',ax=ax[0],color=cluster_key,
-                                     show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=legend_fontsize, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
+                                     show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
+    # texts = []
+    # for c in np.unique(cluster):
+    #     txt = ax[0].text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],c,fontsize=legend_fontsize,ha='center', va='center',fontweight='bold',zorder=20)
+    #     txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
+    #     texts.append(txt)
+    # adjust_text(texts)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=potential_vkey, title='Potential flow',ax=ax[1],color=cluster_key,
-                                     show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=legend_fontsize, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
+                                     show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=rotation_vkey, title='Rotational flow',ax=ax[2],color=cluster_key,
-                                     show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=legend_fontsize, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
+                                     show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
+    for i in range(3):
+        texts = []
+        for c in np.unique(cluster):
+            txt = ax[i].text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],c,fontsize=legend_fontsize,ha='center', va='center',fontweight='bold',zorder=20)
+            txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
+            texts.append(txt)
+        # adjust_text(texts)
+
 
 def view_stream_line(
     adata,
@@ -807,8 +822,8 @@ def view_3D(
     basis = 'umap',
     potential_key = 'potential',
     cluster_key ='clusters',
-    cutedge_vol  = 1,
-    cutedge_length = 1,
+    cutedge_vol  = None,
+    cutedge_length = None,
     show_cells = False,
     show_shadow = True,
     shadow_alpha = 0.2,
@@ -899,7 +914,7 @@ def view_3D(
             y=np.percentile(y[clstr == np.unique(clstr)[i]],50),
             z=np.percentile(z[clstr == np.unique(clstr)[i]],50),
             text="<b>%s<b>" % str(np.unique(clstr)[i]),
-            font=dict(size=14,color='rgba(0,0,0,1)'),bgcolor="rgba(255,255,255,0.7)") for i in range(len(np.unique(clstr)))]#,color="rgba%s" % str(tuple(np.array(cmap_clstr(i+1))*255))
+            font=dict(size=14,color='rgba(0,0,0,1)'),bgcolor="rgba(255,255,255,0.7)") for i in range(len(np.unique(clstr)))]
         layout = go.Layout(
             title = title,
             width=1500,
@@ -912,7 +927,7 @@ def view_3D(
                      zaxis = dict(backgroundcolor=bgcolor,gridcolor=gridcolor),
             ),
             meta=dict(),
-            scene_aspectratio=dict(x=1.2, y=1.2, z=1.2),
+            scene_aspectratio=dict(x=1.0, y=1.0, z=0.5),
         )
         data = [surf]
         if show_cells: data.append(cells)
@@ -954,7 +969,7 @@ def view_3D(
                      zaxis = dict(backgroundcolor=bgcolor,gridcolor=gridcolor),
             ),
             meta=dict(),
-            scene_aspectratio=dict(x=1.2, y=1.2, z=1.2),
+            scene_aspectratio=dict(x=1.0, y=1.0, z=0.5),
         )
         data = [surf]
         if show_cells: data.append(cells)
@@ -1006,8 +1021,6 @@ def view_surface_3D(
                 txt = ax.text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],np.mean(adata.obs[potential_key][cluster == c]),c,fontsize=15,ha='center', va='center',fontweight='bold',zorder=1000)
                 txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
                 texts.append(txt)
-        # from adjustText import adjust_text
-        # adjust_text(texts)
     ax.view_init(elev=elev, azim=azim)
 
 

@@ -44,13 +44,14 @@ tutorial/cache
 tutorial/res
 tutorial/.ipynb_checkpoints
 figures/data/*
+figures/cache
 figures/.ipynb_checkpoints
 
 # Others
 .vscode
 cellmap/.ipynb_checkpoints/CellMap_test_pancreas-checkpoint.ipynb
+cellmap/.ipynb_checkpoints/CellMap_test_pancreas-checkpoint.ipynb
 tutorial/.ipynb_checkpoints/CellMap_tutorial_bonemarrow-checkpoint.ipynb
 tutorial/.ipynb_checkpoints/CellMap_tutorial_pancreas-checkpoint.ipynb
-cellmap/.ipynb_checkpoints/CellMap_test_pancreas-checkpoint.ipynb
 tutorial/.ipynb_checkpoints/CellMap_tutorial_bonemarrow-checkpoint.ipynb
 tutorial/.ipynb_checkpoints/CellMap_tutorial_pancreas-checkpoint.ipynb
