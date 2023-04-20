@@ -3,21 +3,23 @@ import anndata
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-from matplotlib import patheffects as PathEffects
 import matplotlib.cm
+import matplotlib.colors
+from matplotlib import patheffects as PathEffects
+
 import networkx as nx
 import scipy
 import sklearn.preprocessing
 import sklearn.neighbors
 from sklearn.linear_model import LinearRegression
 from sklearn.preprocessing import PolynomialFeatures
-import matplotlib.colors
 import pandas as pd
+import plotly.graph_objects as go
+from plotly.offline import plot
 import logging
 import scanpy
 import scvelo as scv
-import plotly.graph_objects as go
-from plotly.offline import plot
+
 
 
 def create_graph(
@@ -1277,8 +1279,14 @@ def view_trajectory(
     cutedge_length = None,
 ):
 
-    # kwargs_arg = check_arguments(adata, verbose = True, exp_key=exp_key, vkey = vkey, basis=basis, graph_method=graph_method)
-    # exp_key,vkey,basis = kwargs_arg['exp_key'],kwargs_arg['vkey'],kwargs_arg['basis']
+    kwargs_arg = check_arguments(adata, verbose = True, basis=basis)
+    basis = kwargs_arg['basis']
+
+    if sum(adata.obs[cluster_key].values == source_cluster) == 0:
+        raise KeyError('Cluster %s was not found' % source_cluster)
+    for trg_ in target_clusters:
+        if sum(adata.obs[cluster_key].values == source_cluster) == 0:
+            raise KeyError('Cluster %s was not found' % trg_)
 
     basis_key = 'X_%s' % basis
     data_pos = adata.obsm[basis_key]
@@ -1365,6 +1373,16 @@ def path_gene_profile(
     fontsize_label = 14,
     fontsize_legend = 12,
 ):
+    
+    kwargs_arg = check_arguments(adata, verbose = True, basis=basis)
+    basis = kwargs_arg['basis']
+
+    if sum(adata.obs[cluster_key].values == source_cluster) == 0:
+        raise KeyError('Cluster %s was not found' % source_cluster)
+    for trg_ in target_clusters:
+        if sum(adata.obs[cluster_key].values == source_cluster) == 0:
+            raise KeyError('Cluster %s was not found' % trg_)
+    
     if exp_key == None:
         if scipy.sparse.issparse(adata.X): data_exp = adata.X.toarray()
         else: data_exp = adata.X
