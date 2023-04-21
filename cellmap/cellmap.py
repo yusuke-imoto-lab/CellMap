@@ -45,7 +45,7 @@ def create_graph(
         judge_length_tri_= length_ < cut_std*np.std(length_)
     else:
         judge_length_edge_ = length_edge_ < np.percentile(length_edge_,100-cutedge_length)
-        judge_length_tri_ = length_ < np.percentile(length_,100-cutedge_length)
+        judge_length_tri_ = length_ < np.percentile(length_edge_,100-cutedge_length)
     if return_type == 'edges': return tri_.edges[judge_length_edge_].T
     if return_type == 'triangles':
         idx_mask_ = judge_vol_tri_ & judge_length_tri_
