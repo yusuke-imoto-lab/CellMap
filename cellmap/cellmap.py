@@ -248,6 +248,7 @@ def Hodge_decomposition(
     contribution_rate_pca = 0.95,
     cutedge_vol  = None,
     cutedge_length = None,
+    cut_std = 2,
     verbose = True,
     logscale_vel = True,
     ):
@@ -294,7 +295,7 @@ def Hodge_decomposition(
     ## Compute graph and edge velocities
     n_node_ = exp_HD.shape[0]
     if graph_method == 'Delauney':
-        source, target = create_graph(exp_LD,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='edges')
+        source, target = create_graph(exp_LD,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,cut_std=cut_std,return_type='edges')
     elif graph_method == 'knn':
         pca = sklearn.decomposition.PCA()
         exp_HD_pca = pca.fit_transform(exp_HD)
