@@ -25,7 +25,7 @@ def create_graph(
     X,
     cutedge_vol = None,
     cutedge_length = None,
-    cut_std = 1,
+    cut_std = 2,
     return_type = 'edges',
 ):
     tri_ = matplotlib.tri.Triangulation(X[:,0],X[:,1])
@@ -367,19 +367,19 @@ def Hodge_decomposition(
     ## Solve vorticity & stream line
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((vel_LD[:,1],-vel_LD[:,0])).T,source,target))
     stream_line_ = -np.dot(lap_inv,vorticity_)
-    # vorticity_ = -np.dot(lap_inv,stream_line_)
+    # vorticity_ = -np.dot(lap,stream_line_)
     adata.obs[vor_key_] = vorticity_
     adata.obs[sl_key_]  = stream_line_-np.min(stream_line_)
 
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[pot_vkey_][:,1],-adata.obsm[pot_vkey_][:,0])).T,source,target))
     stream_line_ = -np.dot(lap_inv,vorticity_)
-    # vorticity_ = -np.dot(lap_inv,stream_line_)
+    # vorticity_ = -np.dot(lap,stream_line_)
     adata.obs[pot_vor_key_] = vorticity_
     adata.obs[pot_sl_key_] = stream_line_-np.min(stream_line_)
 
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[rot_vkey_][:,1],-adata.obsm[rot_vkey_][:,0])).T,source,target))
     stream_line_ = -np.dot(lap_inv,vorticity_)
-    # vorticity_ = -np.dot(lap_inv,stream_line_)
+    # vorticity_ = -np.dot(lap,stream_line_)
     adata.obs[rot_vor_key_] = vorticity_
     adata.obs[rot_sl_key_] = stream_line_-np.min(stream_line_)
 
@@ -625,7 +625,7 @@ def view_stream(
     rotation_vkey = 'rotation_velocity',
     cluster_key = 'clusters',
     figsize=(24,6),
-    density = 4,
+    density = 2,
     alpha = 0.3,
     fontsize = 18,
     legend_fontsize = 18,
@@ -641,12 +641,6 @@ def view_stream(
     fig,ax = plt.subplots(1,3,figsize=figsize,tight_layout=True)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=vkey, title='RNA velocity',ax=ax[0],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
-    # texts = []
-    # for c in np.unique(cluster):
-    #     txt = ax[0].text(np.mean(data_pos[cluster == c],axis=0)[0],np.mean(data_pos[cluster == c],axis=0)[1],c,fontsize=legend_fontsize,ha='center', va='center',fontweight='bold',zorder=20)
-    #     txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
-    #     texts.append(txt)
-    # adjust_text(texts)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=potential_vkey, title='Potential flow',ax=ax[1],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
     scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=rotation_vkey, title='Rotational flow',ax=ax[2],color=cluster_key,
@@ -867,7 +861,7 @@ def view_3D(
     tri_,idx_tri = create_graph(adata.obsm[basis_key],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type = 'triangles')
     triangles = tri_.triangles[idx_tri]
 
-    camera = dict(eye=dict(x=1.8, y=-1.0, z=1.8))
+    camera = dict(eye=dict(x=1.2, y=-1.2, z=1.0))
     idx = np.zeros(adata.shape[0],dtype=bool)
     np.random.seed(seed)
     idx[np.random.choice(adata.shape[0],min(n_points,adata.shape[0]),replace=False)] = True
