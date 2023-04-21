@@ -25,7 +25,7 @@ def create_graph(
     X,
     cutedge_vol = None,
     cutedge_length = None,
-    cut_std = 2.5,
+    cut_std = 2.2,
     return_type = 'edges',
 ):
     tri_ = matplotlib.tri.Triangulation(X[:,0],X[:,1])
