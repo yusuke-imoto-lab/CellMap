@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 import matplotlib.cm
 import matplotlib.colors
 from matplotlib import patheffects as PathEffects
-
 import networkx as nx
 import scipy
 import sklearn.preprocessing
@@ -24,30 +23,34 @@ import scvelo as scv
 
 def create_graph(
     X,
-    Y,
     cutedge_vol = None,
     cutedge_length = None,
     cut_std = 1,
-    return_mask = False
+    return_type = 'edges',
 ):
-    tri_ = matplotlib.tri.Triangulation(X,Y)
-    x1,y1 = X[tri_.triangles[:,0]],Y[tri_.triangles[:,0]]
-    x2,y2 = X[tri_.triangles[:,1]],Y[tri_.triangles[:,1]]
-    x3,y3 = X[tri_.triangles[:,2]],Y[tri_.triangles[:,2]]
-    vol = np.abs((x1-x3)*(y2-y3)-(x2-x3)*(y1-y3))
-    length = np.max([(x1-x2)**2+(y1-y2)**2,(x2-x3)**2+(y2-y3)**2,(x3-x1)**2+(y3-y1)**2],axis=0)
+    tri_ = matplotlib.tri.Triangulation(X[:,0],X[:,1])
+    X_src_,X_trg_ = X[tri_.edges[:,0]],X[tri_.edges[:,1]]
+    length_edge_ = np.linalg.norm(X_src_-X_trg_,axis=1)
+    x1,y1 = X[tri_.triangles[:,0],0],X[tri_.triangles[:,0],1]
+    x2,y2 = X[tri_.triangles[:,1],0],X[tri_.triangles[:,1],1]
+    x3,y3 = X[tri_.triangles[:,2],0],X[tri_.triangles[:,2],1]
+    vol_ = np.abs((x1-x3)*(y2-y3)-(x2-x3)*(y1-y3))
+    length_ = np.max([(x1-x2)**2+(y1-y2)**2,(x2-x3)**2+(y2-y3)**2,(x3-x1)**2+(y3-y1)**2],axis=0)
     if cutedge_vol == None:
-        judge_vol = vol < cut_std*np.std(vol)
+        judge_vol_tri_ = vol_ < cut_std*np.std(vol_)
     else:
-        judge_vol = vol < np.percentile(vol,100-cutedge_vol)
+        judge_vol_tri_ = vol_ < np.percentile(vol_,100-cutedge_vol)
     if cutedge_length == None:
-        judge_length = length < cut_std*np.std(length)
+        judge_length_edge_ = length_edge_ < cut_std*np.std(length_edge_)
+        judge_length_tri_= length_ < cut_std*np.std(length_)
     else:
-        judge_length = length < np.percentile(length,100-cutedge_length)
-    tri_mask_ = judge_vol & judge_length
-    tri_.set_mask(tri_mask_==False)
-    if return_mask: return tri_,tri_mask_
-    else: return tri_
+        judge_length_edge_ = length_edge_ < np.percentile(length_edge_,100-cutedge_length)
+        judge_length_tri_ = length_ < np.percentile(length_,100-cutedge_length)
+    if return_type == 'edges': return tri_.edges[judge_length_edge_].T
+    if return_type == 'triangles':
+        idx_mask_ = judge_vol_tri_ & judge_length_tri_
+        tri_.set_mask(idx_mask_==False)
+        return tri_,idx_mask_
 
 
 
@@ -207,10 +210,11 @@ def edge_velocity(
     V1,V2 = vel[:,idx_vel][source],vel[:,idx_vel][target]
     Dis = np.linalg.norm(X2-X1,axis=1)
     Dis[Dis==0] = 1
-    V1_p,V2_p = V1*(X2-X1),V2*(X2-X1)
-    V1_p[V1_p<0] = 0
-    V2_p[V2_p<0] = 0
-    edge_vel = np.sum(0.5*(V1_p+V2_p),axis=1)/Dis/np.sum(idx_vel)
+    # V1_p,V2_p = V1*(X2-X1),V2*(X2-X1)
+    # V1_p[V1_p<0] = 0
+    # V2_p[V2_p<0] = 0
+    # edge_vel = np.sum(0.5*(V1_p+V2_p),axis=1)/Dis/np.sum(idx_vel)
+    edge_vel = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis/np.sum(idx_vel)
     if normalization:
         edge_vel_norm = np.linalg.norm(edge_vel)
         if edge_vel_norm > 0: edge_vel= edge_vel/edge_vel_norm
@@ -290,8 +294,7 @@ def Hodge_decomposition(
     ## Compute graph and edge velocities
     n_node_ = exp_HD.shape[0]
     if graph_method == 'Delauney':
-        tri_,idx_tri = create_graph(exp_LD[:,0],exp_LD[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
-        source, target = np.ravel(tri_.triangles[idx_tri][:,[0,1,2]]),np.ravel(tri_.triangles[idx_tri][:,[1,2,0]])
+        source, target = create_graph(exp_LD,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='edges')
     elif graph_method == 'knn':
         pca = sklearn.decomposition.PCA()
         exp_HD_pca = pca.fit_transform(exp_HD)
@@ -324,26 +327,31 @@ def Hodge_decomposition(
     source_term = np.dot(div_mat,edge_vel)
     lap_inv = np.linalg.pinv(lap)
     potential = np.dot(lap_inv,source_term)
-    pot_flow = -np.dot(grad_mat,potential)
+    pot_flow_ = -np.dot(grad_mat,potential)
+    rot_flow_ = edge_vel - pot_flow_
     adata.obs[potential_key] = potential - np.min(potential)
 
 
-    ## Compute potential & rotational flow
+    # Compute potential & rotational flow
     vel_potential = np.zeros([adata.shape[0],2],dtype=float)
-    # vel_rotation = np.zeros([adata.shape[0],2],dtype=float)
+    vel_rotation = np.zeros([adata.shape[0],2],dtype=float)
     if graph_method == 'Delauney':
-        tri_,idx_tri = create_graph(exp_LD[:,0],exp_LD[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
-        source, target = np.ravel(tri_.triangles[idx_tri][:,[0,1,2]]),np.ravel(tri_.triangles[idx_tri][:,[1,2,0]])
+        edge_vel = edge_velocity(exp_LD,vel_LD,source,target,normalization=False)
         for i in range(adata.shape[0]):
             idx_s = source == i
             idx_t = target == i
-            ex_s = -(exp_LD[source[idx_s]]-exp_LD[target[idx_s]])/np.linalg.norm(exp_LD[source[idx_s]]-exp_LD[target[idx_s]],ord=2)
-            ex_t = -(exp_LD[target[idx_t]]-exp_LD[source[idx_t]])/np.linalg.norm(exp_LD[target[idx_t]]-exp_LD[source[idx_t]],ord=2)
-            edge_vel = edge_velocity(exp_LD,vel_LD,source,target,normalization=False)
-            vel_potential[i] = 2*np.linalg.norm(edge_vel)*(np.sum((adata.obs[potential_key][source[idx_s]].values-adata.obs[potential_key][target[idx_s]].values)*ex_s.T,axis=1) + \
-                                np.sum((adata.obs[potential_key][target[idx_t]].values-adata.obs[potential_key][source[idx_t]].values)*ex_t.T,axis=1))
+            if sum(idx_s) > 0:
+                ex_s = -(exp_LD[source[idx_s]]-exp_LD[target[idx_s]])/np.linalg.norm(exp_LD[source[idx_s]]-exp_LD[target[idx_s]],ord=2)
+                vel_potential[i] += 2*np.linalg.norm(edge_vel)*np.sum(pot_flow_[idx_s]*ex_s.T,axis=1)
+                vel_rotation[i]  += 2*np.linalg.norm(edge_vel)*np.sum(rot_flow_[idx_s]*ex_s.T,axis=1)
+            if sum(idx_t) > 0:
+                ex_t = -(exp_LD[target[idx_t]]-exp_LD[source[idx_t]])/np.linalg.norm(exp_LD[target[idx_t]]-exp_LD[source[idx_t]],ord=2)
+                edge_vel = edge_velocity(exp_LD,vel_LD,source,target,normalization=False)
+                vel_potential[i] += -2*np.linalg.norm(edge_vel)*np.sum(pot_flow_[idx_t]*ex_t.T,axis=1)
+                vel_rotation[i]  += -2*np.linalg.norm(edge_vel)*np.sum(rot_flow_[idx_t]*ex_t.T,axis=1)
         adata.obsm[pot_vkey_] = vel_potential
-        adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
+        # adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
+        adata.obsm[rot_vkey_] = vel_rotation
     elif graph_method == 'knn':
         knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
         knn.fit(exp_LD)
@@ -353,7 +361,8 @@ def Hodge_decomposition(
             ex_s = (exp_LD[indices[i]]-exp_LD[i])/np.linalg.norm(exp_LD[indices[i]]-exp_LD[i],ord=2)
             vel_potential[i] = -2*np.sum((adata.obs[potential_key].values[indices[i]]-adata.obs[potential_key].values[i])*ex_s.T,axis=1)
         adata.obsm[pot_vkey_] = vel_potential
-        adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
+        # adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
+        adata.obsm[rot_vkey_] = vel_rotation
     
     ## Solve vorticity & stream line
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((vel_LD[:,1],-vel_LD[:,0])).T,source,target))
@@ -374,14 +383,13 @@ def Hodge_decomposition(
     adata.obs[rot_vor_key_] = vorticity_
     adata.obs[rot_sl_key_] = stream_line_-np.min(stream_line_)
 
-    rot_flow = edge_vel - pot_flow
-    adata.obs[rotation_key] = np.array([np.mean(np.vstack((rot_flow[source==i],-rot_flow[target==i]))) for i in range(adata.shape[0])])
+    adata.obs[rotation_key] = np.array([np.mean(np.hstack((rot_flow_[source==i],-rot_flow_[target==i]))) for i in range(adata.shape[0])])
 
     ## Contribution ratio
     log_ = {}
     log_["Contribution_ratio"] = {}
-    norm_grad = np.linalg.norm(pot_flow)
-    norm_curl = np.linalg.norm(rot_flow)
+    norm_grad = np.linalg.norm(pot_flow_)
+    norm_curl = np.linalg.norm(rot_flow_)
     log_["Contribution_ratio"]['Potential'] = '{:.2%}'.format(norm_grad/(norm_grad+norm_curl))
     log_["Contribution_ratio"]['Rotation']  = '{:.2%}'.format(norm_curl/(norm_grad+norm_curl))
     adata.uns['CellMap_log'] = log_
@@ -442,8 +450,8 @@ def Hodge_decomposition_genes(
     
     n_node_ = exp_HD.shape[0]
     if graph_method == 'Delauney':
-        tri_,idx_tri = create_graph(exp_LD[:,0],exp_LD[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
-        source, target = np.ravel(tri_.triangles[idx_tri][:,[0,1,2]]),np.ravel(tri_.triangles[idx_tri][:,[1,2,0]])
+        source, target = create_graph(exp_LD,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='edges')
+        # source, target = np.ravel(tri_.triangles[idx_tri][:,[0,1,2]]),np.ravel(tri_.triangles[idx_tri][:,[1,2,0]])
     elif graph_method == 'knn':
         pca = sklearn.decomposition.PCA()
         exp_HD_pca = pca.fit_transform(exp_HD)
@@ -507,7 +515,7 @@ def view(
     fig,ax = plt.subplots(figsize=figsize)
     sc = ax.scatter(data_pos[:,0],data_pos[:,1],c=adata.obs[color_key],zorder=10,**kwargs)
     if show_graph:
-        tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
+        tri_ = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='triangles')[0]
         ax.tripcolor(tri_,adata.obs[color_key],lw=0.5,zorder=0,alpha=0.3,cmap=kwargs['cmap'])
     if cluster_key != None:
         if cluster_key in adata.obs.keys():
@@ -546,7 +554,7 @@ def view_cluster(
 
     data_pos = adata.obsm[basis_key]
     fig,ax = plt.subplots(figsize=(8,6))
-    tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
+    tri_ = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='triangles')[0]
     sc = ax.tricontourf(tri_,adata.obs[potential_key],zorder=0,alpha=0.9,cmap=kwargs['cmap'],levels=100)
     if cluster_key in adata.obs.keys():
         cluster = adata.obs[cluster_key]
@@ -590,7 +598,7 @@ def view_surface(
         kwargs['cmap'] = cmap_earth(adata.obs[color_key])
     
     data_pos = adata.obsm[basis_key]
-    tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
+    tri_ = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='triangles')[0]
     fig,ax = plt.subplots(figsize=(8,6))
     cntr = ax.tricontourf(tri_,adata.obs[color_key],cmap=kwargs['cmap'],levels=100,zorder=2)
     fig.colorbar(cntr, shrink=0.75, orientation='vertical').set_label(color_key,fontsize=20)
@@ -680,7 +688,7 @@ def view_stream_line(
     
     
     data_pos = adata.obsm[basis_key]
-    tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
+    tri_ = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='triangles')[0]
     
     contour_keys = [key_, pot_key_, rot_key_]
     camps = [cmap_earth(adata.obs[key_]),'rainbow','coolwarm']
@@ -794,7 +802,7 @@ def view_surface_genes(
         kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
     
     data_pos = adata.obsm[basis_key]
-    tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
+    tri_ = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='triangles')[0]
     
     for gene in genes:
         fig,ax = plt.subplots(1,3,figsize=(45,10))
@@ -856,7 +864,7 @@ def view_3D(
     c_level = [0,5,20,40,60,75,80,85,90,95,99,100]
     custom_cmap = [[0.01*c_level[i],c_list[i]] for i in range(len(c_list))]
 
-    tri_,idx_tri = create_graph(x,y,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
+    tri_,idx_tri = create_graph(adata.obsm[basis_key],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type = 'triangles')
     triangles = tri_.triangles[idx_tri]
 
     camera = dict(eye=dict(x=1.8, y=-1.0, z=1.8))
@@ -1011,7 +1019,7 @@ def view_surface_3D(
         kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
 
     data_pos = adata.obsm[basis_key]
-    tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
+    tri_ = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='triangles')[0]
     fig = plt.figure(figsize=(15,15))
     ax = fig.add_subplot(111, projection='3d')
     cntr = ax.plot_trisurf(tri_,adata.obs[potential_key],cmap=kwargs['cmap'],zorder=2)
@@ -1055,7 +1063,7 @@ def view_surface_3D_cluster(
         basis_key = 'X_%s' % basis
 
         data_pos = adata.obsm[basis_key]
-        tri_ = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length)
+        tri_ = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='triangles')[0]
         if 'cmap' not in kwargs:
             kwargs['cmap'] = cmap_earth(adata.obs[potential_key])
         fig = plt.figure(figsize=(15,15))
@@ -1200,8 +1208,7 @@ def create_dgraph_potential(
     basis_key = 'X_%s' % basis
     
     data_pos = adata.obsm[basis_key]
-    triangles = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length).triangles
-    tri_,idx_tri = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
+    tri_,idx_tri = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
     triangles = tri_.triangles[idx_tri]
     n_node_ = data_pos.shape[0]
     graph_ = scipy.sparse.lil_matrix(np.zeros([n_node_,n_node_]))
@@ -1242,8 +1249,7 @@ def create_dgraph(
     
     data_pos = adata.obsm[basis_key]
     data_vel = adata.obsm['%s_%s' % (vkey,basis)]
-    triangles = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length).triangles
-    tri_,idx_tri = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
+    tri_,idx_tri = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
     triangles = tri_.triangles[idx_tri]
     n_node_ = data_pos.shape[0]
     graph_ = scipy.sparse.lil_matrix(np.zeros([n_node_,n_node_]))
@@ -1293,8 +1299,8 @@ def view_trajectory(
 
     ## Compute graph and edge velocities
     if graph_method == 'Delauney':
-        tri_,idx_tri = create_graph(data_pos[:,0],data_pos[:,1],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_mask = True)
-        source, target = np.ravel(tri_.triangles[idx_tri][:,[0,1,2]]),np.ravel(tri_.triangles[idx_tri][:,[1,2,0]])
+        tri_ = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='triangles')[0]
+        source, target = create_graph(data_pos,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='edges')
     elif graph_method == 'knn':
         pca = sklearn.decomposition.PCA()
         exp_HD_pca = pca.fit_transform(data_pos)
@@ -1367,6 +1373,7 @@ def path_gene_profile(
     source_cluster,
     target_clusters,
     genes,
+    cluster_key = 'clusters',
     path_key = 'path',
     exp_key = None,
     fontsize_title = 16,
@@ -1374,8 +1381,7 @@ def path_gene_profile(
     fontsize_legend = 12,
 ):
     
-    kwargs_arg = check_arguments(adata, verbose = True, basis=basis)
-    basis = kwargs_arg['basis']
+    kwargs_arg = check_arguments(adata, verbose = True)
 
     if sum(adata.obs[cluster_key].values == source_cluster) == 0:
         raise KeyError('Cluster %s was not found' % source_cluster)
