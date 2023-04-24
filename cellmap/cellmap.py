@@ -25,7 +25,7 @@ def create_graph(
     X,
     cutedge_vol = None,
     cutedge_length = None,
-    cut_std = 2.2,
+    cut_std = None,
     return_type = 'edges',
 ):
     tri_ = matplotlib.tri.Triangulation(X[:,0],X[:,1])
@@ -36,6 +36,14 @@ def create_graph(
     x3,y3 = X[tri_.triangles[:,2],0],X[tri_.triangles[:,2],1]
     vol_ = np.abs((x1-x3)*(y2-y3)-(x2-x3)*(y1-y3))
     length_ = np.max([(x1-x2)**2+(y1-y2)**2,(x2-x3)**2+(y2-y3)**2,(x3-x1)**2+(y3-y1)**2],axis=0)
+    if cut_std == None:
+        std_delta_ = 0.1
+        std_min_ = 1
+        cut_std = std_min_
+        while 1:
+            if len(np.unique(tri_.edges[length_edge_ < cut_std*np.std(length_edge_)].reshape(-1,1).T[0])) == X.shape[0]:
+                break
+            cut_std = cut_std + std_delta_
     if cutedge_vol == None:
         judge_vol_tri_ = vol_ < cut_std*np.std(vol_)
     else:
@@ -248,7 +256,7 @@ def Hodge_decomposition(
     contribution_rate_pca = 0.95,
     cutedge_vol  = None,
     cutedge_length = None,
-    cut_std = 2,
+    cut_std = None,
     verbose = True,
     logscale_vel = True,
     ):
