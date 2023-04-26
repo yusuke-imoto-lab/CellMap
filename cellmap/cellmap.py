@@ -1517,7 +1517,7 @@ def gene_dynamics_plot(
                 plt.plot(plot_x, dynamics_,color='w',lw=8,zorder=1)
                 plt.plot(plot_x, dynamics_,color=cmap_(i),lw=5,label=target_clusters[i],zorder=2)
             plt.legend(bbox_to_anchor=(1.05, 0.5), loc='center left', borderaxespad=0,title='Target', fontsize=fontsize_legend, title_fontsize=fontsize_legend)
-            plt.xticks([0,1],['Source\n(%s)' % source_cluster,'Target'],fontsize=fontsize_label)
+            plt.xticks([0,0.25,0.5,0.75,1],['Source (0)\n(%s)' % source_cluster,'0.25','0.5','0.75','Target (1)'],fontsize=fontsize_label)
             plt.title(gene,fontsize=fontsize_title)
             plt.show()
         else:
