@@ -1534,51 +1534,50 @@ def gene_dynamics_DEG(
         n_div = 100,
         fontsize_label = 14,
         fontsize_text = 12,
-        DEG_min = 1,
-        DEG_rate = 0.25,
-        save_dir = '.',
+        DEG_min = 1.5,
+        DEG_rate = 0.3,
+        save_dir = None,
         save_type = 'gif',
+        adjusttext = False,
     ):
     n_plot_ = int(len(target_clusters)*(len(target_clusters)-1)/2)
     cmap_ = plt.get_cmap("tab10")
     gene_dynamics_ = adata.uns[gene_dynamics_key]
+    def update(t,name_i_,name_j_,max_val_,lim):
+        print('\rcomputing %s vs %s (%d/%d) %d/%d' % (target_clusters[i],target_clusters[j],k,n_plot_,t+1,n_div),end='')
+        idx_DEG_i_ = (gene_dynamics_[name_j_][t] < gene_dynamics_[name_i_][t] - DEG_rate) & (gene_dynamics_[name_i_][t] > DEG_min)
+        idx_DEG_j_ = (gene_dynamics_[name_i_][t] < gene_dynamics_[name_j_][t] - DEG_rate) & (gene_dynamics_[name_j_][t] > DEG_min)
+        plt.cla()
+        plt.title('Time = %.02f [s]' % (t/n_div))
+        plt.scatter(gene_dynamics_[name_i_][t],gene_dynamics_[name_j_][t],s=1,color="gray",zorder=1)
+        plt.scatter(gene_dynamics_[name_i_][t][idx_DEG_i_],gene_dynamics_[name_j_][t][idx_DEG_i_],color=cmap_(i),zorder=2,s=20)
+        plt.scatter(gene_dynamics_[name_i_][t][idx_DEG_j_],gene_dynamics_[name_j_][t][idx_DEG_j_],color=cmap_(j),zorder=2,s=20)
+        texts = []
+        for g in np.arange(adata.shape[1])[idx_DEG_i_]:
+            tx_ = plt.text(gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g],color="k",zorder=2,fontsize=fontsize_text)
+            texts = np.append(texts,tx_)
+        for g in np.arange(adata.shape[1])[idx_DEG_j_]:
+            tx_ = plt.text(gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g],color="k",zorder=2,fontsize=fontsize_text)
+            texts = np.append(texts,tx_)
+        if adjusttext: adjust_text(texts, arrowprops=dict(arrowstyle='-', color='red'))
+        plt.fill_between(lim, lim-DEG_rate, lim+DEG_rate, facecolor='lightgray',  alpha=0.5,zorder=0)
+        plt.fill([-0.01*max_val_, DEG_min, DEG_min, -0.01*max_val_], [-0.01*max_val_, -0.01*max_val_, DEG_min, DEG_min], facecolor='lightgray', alpha=0.5,zorder=0)
+        plt.xlabel(target_clusters[i],fontsize=fontsize_label,color=cmap_(i), fontweight="bold")
+        plt.ylabel(target_clusters[j],fontsize=fontsize_label,color=cmap_(j), fontweight="bold")
+        plt.xlim(lim)
+        plt.ylim(lim)
+        plt.grid(ls='--');
     k = 0
     for i in range(len(target_clusters)):
         for j in range(i+1,len(target_clusters)):
             name_i_ = source_cluster+'_'+target_clusters[i]
             name_j_ = source_cluster+'_'+target_clusters[j]
-            t = 90
             fig = plt.figure(figsize=(8,8))
             max_val_ = max(np.max(gene_dynamics_[name_i_]),np.max(gene_dynamics_[name_j_]))
             lim = np.array([-0.01*max_val_,1.01*max_val_])
             k = k+1
-            def update(t):
-                print('\rComputing %s vs %s (%d/%d) %d/%d' % (target_clusters[i],target_clusters[j],k,n_plot_,t+1,n_div),end='')
-                idx_DEG_i_ = (gene_dynamics_[name_j_][t] < gene_dynamics_[name_i_][t] - DEG_rate) & (gene_dynamics_[name_i_][t] > DEG_min)
-                idx_DEG_j_ = (gene_dynamics_[name_i_][t] < gene_dynamics_[name_j_][t] - DEG_rate) & (gene_dynamics_[name_j_][t] > DEG_min)
-                plt.cla()
-                plt.title('Time = %.02f [s]' % (t/n_div))
-                plt.scatter(gene_dynamics_[name_i_][t],gene_dynamics_[name_j_][t],s=1,color="gray",zorder=1)
-                plt.scatter(gene_dynamics_[name_i_][t][idx_DEG_i_],gene_dynamics_[name_j_][t][idx_DEG_i_],color=cmap_(i),zorder=2,s=20)
-                plt.scatter(gene_dynamics_[name_i_][t][idx_DEG_j_],gene_dynamics_[name_j_][t][idx_DEG_j_],color=cmap_(j),zorder=2,s=20)
-                texts = []
-                for g in np.arange(adata.shape[1])[idx_DEG_i_]:
-                    tx_ = plt.text(gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g],color="k",zorder=2,fontsize=fontsize_text)
-                    texts = np.append(texts,tx_)
-                for g in np.arange(adata.shape[1])[idx_DEG_j_]:
-                    tx_ = plt.text(gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g],color="k",zorder=2,fontsize=fontsize_text)
-                    texts = np.append(texts,tx_)
-                adjust_text(texts, arrowprops=dict(arrowstyle='-', color='red'))
-                plt.fill_between(lim, lim-DEG_rate, lim+DEG_rate, facecolor='lightgray',  alpha=0.5,zorder=0)
-                plt.fill([-0.01*max_val_, DEG_min, DEG_min, -0.01*max_val_], [-0.01*max_val_, -0.01*max_val_, DEG_min, DEG_min], facecolor='lightgray', alpha=0.5,zorder=0)
-                plt.xlabel(target_clusters[i],fontsize=fontsize_label,color=cmap_(i), fontweight="bold")
-                plt.ylabel(target_clusters[j],fontsize=fontsize_label,color=cmap_(j), fontweight="bold")
-                plt.xlim(lim)
-                plt.ylim(lim)
-                plt.grid(ls='--');
-
-            ani = anm.FuncAnimation(fig,update,interval=200,frames=n_div)
-            file_name = '%s/DEG_anoime_%s_%s.gif' % (save_dir,target_clusters[i],target_clusters[j])
+            ani = anm.FuncAnimation(fig,update,interval=200,fargs=(name_i_,name_j_,max_val_,lim,),frames=n_div)
+            file_name = 'DEG_anoime_%s_%s.gif' % (target_clusters[i],target_clusters[j]) if save_dir == None else '%s/DEG_anoime_%s_%s.gif' % (save_dir,target_clusters[i],target_clusters[j])
             ani.save(file_name)
             print('\nSaving gif animation as %s' % file_name)
             plt.close()
