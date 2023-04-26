@@ -1,10 +1,12 @@
 from adjustText import adjust_text
 import anndata
+import IPython.display
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.cm
 import matplotlib.colors
+import matplotlib.animation as anm
 from matplotlib import patheffects as PathEffects
 import networkx as nx
 import scipy
@@ -18,7 +20,6 @@ from plotly.offline import plot
 import logging
 import scanpy
 import scvelo as scv
-
 
 
 def create_graph(
@@ -1521,10 +1522,6 @@ def gene_dynamics_plot(
             print('Gene \"%s\" was not found' % gene)
 
 
-import matplotlib.animation as anm
-import IPython.display
-import matplotlib.patches as patches
-from adjustText import adjust_text
 
 def gene_dynamics_DEG(
         adata,
