@@ -1563,7 +1563,7 @@ def gene_dynamics_DEG(
         plt.ylabel(target_clusters[j],fontsize=fontsize_label,color=cmap_(j), fontweight="bold")
         plt.xlim(lim)
         plt.ylim(lim)
-        plt.grid(ls='--');
+        plt.grid(ls='--')
     k = 0
     for i in range(len(target_clusters)):
         for j in range(i+1,len(target_clusters)):
