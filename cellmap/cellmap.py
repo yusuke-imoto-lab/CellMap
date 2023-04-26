@@ -1,6 +1,7 @@
 from adjustText import adjust_text
 import anndata
 import IPython.display
+import logging
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -9,7 +10,9 @@ import matplotlib.colors
 import matplotlib.animation as anm
 from matplotlib import patheffects as PathEffects
 import networkx as nx
+import scanpy
 import scipy
+import scvelo as scv
 import sklearn.preprocessing
 import sklearn.neighbors
 from sklearn.linear_model import LinearRegression
@@ -17,9 +20,8 @@ from sklearn.preprocessing import PolynomialFeatures
 import pandas as pd
 import plotly.graph_objects as go
 from plotly.offline import plot
-import logging
-import scanpy
-import scvelo as scv
+
+
 
 
 def create_graph(
@@ -1400,7 +1402,7 @@ def view_trajectory(
         idx_ = clusters_ == target_clusters[i_trg_]
         ax.scatter(data_pos[idx_,0],data_pos[idx_,1],color=cmap_(i_trg_),zorder=10,marker='o',alpha=0.2,s=5,label=target_clusters[i_trg_]+' (target)')
     leg = ax.legend(bbox_to_anchor=(1.05, 0.5), loc='center left', borderaxespad=0, fontsize=12,markerscale=3)
-    for lh in leg.legendHandles: lh.set_alpha(1)
+    for lh in leg.legend_handles: lh.set_alpha(1)
 
     data_src_ = data_pos[adata.obs[cluster_key].values == source_cluster]
     center_src_ = np.mean(data_src_,axis=0)
@@ -1531,32 +1533,48 @@ def gene_dynamics_DEG(
         n_div = 100,
         fontsize_label = 14,
         fontsize_text = 12,
+        fontsize_nDEG = 18,
         DEG_min = 1.5,
         DEG_rate = 0.3,
         save_dir = None,
         save_type = 'gif',
         adjusttext = False,
+        max_num_annotations = 10,
     ):
+
+    if gene_dynamics_key not in adata.uns.keys():
+        gene_dynamics(adata, source_cluster,target_clusters,path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=100)
+
     n_plot_ = int(len(target_clusters)*(len(target_clusters)-1)/2)
     cmap_ = plt.get_cmap("tab10")
     gene_dynamics_ = adata.uns[gene_dynamics_key]
-    def update(t,name_i_,name_j_,max_val_,lim):
+    def update(t,name_i_,name_j_,max_val_,lim,i,j,k):
         print('\rcomputing %s vs %s (%d/%d) %d/%d' % (target_clusters[i],target_clusters[j],k,n_plot_,t+1,n_div),end='')
-        idx_DEG_i_ = (gene_dynamics_[name_j_][t] < gene_dynamics_[name_i_][t] - DEG_rate) & (gene_dynamics_[name_i_][t] > DEG_min)
-        idx_DEG_j_ = (gene_dynamics_[name_i_][t] < gene_dynamics_[name_j_][t] - DEG_rate) & (gene_dynamics_[name_j_][t] > DEG_min)
+        idx_DEG_i_ = np.arange(adata.shape[1])[(gene_dynamics_[name_j_][t] < gene_dynamics_[name_i_][t] - DEG_rate) & (gene_dynamics_[name_i_][t] > DEG_min)]
+        idx_DEG_j_ = np.arange(adata.shape[1])[(gene_dynamics_[name_i_][t] < gene_dynamics_[name_j_][t] - DEG_rate) & (gene_dynamics_[name_j_][t] > DEG_min)]
+        if len(idx_DEG_i_) > max_num_annotations:
+            idx_DEG_top_i_ = idx_DEG_i_[np.argsort(gene_dynamics_[name_i_][t][idx_DEG_i_]- DEG_rate - gene_dynamics_[name_j_][t][idx_DEG_i_])[::-1][:max_num_annotations]]
+        else:
+            idx_DEG_top_i_  = idx_DEG_i_
+        if len(idx_DEG_j_) > max_num_annotations:
+            idx_DEG_top_j_ = idx_DEG_j_[np.argsort(gene_dynamics_[name_j_][t][idx_DEG_j_]- DEG_rate - gene_dynamics_[name_i_][t][idx_DEG_j_])[::-1][:max_num_annotations]]
+        else:
+            idx_DEG_top_j_  = idx_DEG_j_
         plt.cla()
         plt.title('Time = %.02f [s]' % (t/n_div))
         plt.scatter(gene_dynamics_[name_i_][t],gene_dynamics_[name_j_][t],s=1,color="gray",zorder=1)
         plt.scatter(gene_dynamics_[name_i_][t][idx_DEG_i_],gene_dynamics_[name_j_][t][idx_DEG_i_],color=cmap_(i),zorder=2,s=20)
         plt.scatter(gene_dynamics_[name_i_][t][idx_DEG_j_],gene_dynamics_[name_j_][t][idx_DEG_j_],color=cmap_(j),zorder=2,s=20)
         texts = []
-        for g in np.arange(adata.shape[1])[idx_DEG_i_]:
+        for g in np.arange(adata.shape[1])[idx_DEG_top_i_]:
             tx_ = plt.text(gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g],color="k",zorder=2,fontsize=fontsize_text)
             texts = np.append(texts,tx_)
-        for g in np.arange(adata.shape[1])[idx_DEG_j_]:
+        for g in np.arange(adata.shape[1])[idx_DEG_top_j_]:
             tx_ = plt.text(gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g],color="k",zorder=2,fontsize=fontsize_text)
             texts = np.append(texts,tx_)
         if adjusttext: adjust_text(texts, arrowprops=dict(arrowstyle='-', color='red'))
+        plt.text(0.9*(lim[1]-lim[0])+lim[0], 0.1*(lim[1]-lim[0])+lim[0], str(len(idx_DEG_i_)) , ha='center', va='center', fontsize=fontsize_nDEG,color=cmap_(i), fontweight="bold",zorder=3)
+        plt.text(0.1*(lim[1]-lim[0])+lim[0], 0.9*(lim[1]-lim[0])+lim[0], str(len(idx_DEG_j_)) , ha='center', va='center', fontsize=fontsize_nDEG,color=cmap_(j), fontweight="bold",zorder=3)
         plt.fill_between(lim, lim-DEG_rate, lim+DEG_rate, facecolor='lightgray',  alpha=0.5,zorder=0)
         plt.fill([-0.01*max_val_, DEG_min, DEG_min, -0.01*max_val_], [-0.01*max_val_, -0.01*max_val_, DEG_min, DEG_min], facecolor='lightgray', alpha=0.5,zorder=0)
         plt.xlabel(target_clusters[i],fontsize=fontsize_label,color=cmap_(i), fontweight="bold")
@@ -1573,9 +1591,9 @@ def gene_dynamics_DEG(
             max_val_ = max(np.max(gene_dynamics_[name_i_]),np.max(gene_dynamics_[name_j_]))
             lim = np.array([-0.01*max_val_,1.01*max_val_])
             k = k+1
-            ani = anm.FuncAnimation(fig,update,interval=200,fargs=(name_i_,name_j_,max_val_,lim,),frames=n_div)
+            ani = anm.FuncAnimation(fig,update,interval=200,fargs=(name_i_,name_j_,max_val_,lim,i,j,k,),frames=n_div)
             file_name = 'DEG_anoime_%s_%s.gif' % (target_clusters[i],target_clusters[j]) if save_dir == None else '%s/DEG_anoime_%s_%s.gif' % (save_dir,target_clusters[i],target_clusters[j])
-            ani.save(file_name)
-            print('\nSaving gif animation as %s' % file_name)
             IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
+            print('\nSaving gif animation as %s' % file_name)
+            ani.save(file_name)
             plt.close()
