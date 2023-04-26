@@ -1406,7 +1406,7 @@ def view_trajectory(
     centrality_src_ = np.linalg.norm(data_src_-center_src_,axis=1)
     src_set_all_ = np.arange(adata.shape[0])[adata.obs[cluster_key].values == source_cluster][np.argsort(centrality_src_)]
     n_src_ = sum(adata.obs[cluster_key].values == source_cluster)
-    path_all = []
+    path_all = {}
     for i_trg_ in range(len(target_clusters)):
         target_cluster = target_clusters[i_trg_]
         n_cells_ = np.min([n_cells,sum(adata.obs[cluster_key].values == source_cluster),sum(adata.obs[cluster_key].values == target_cluster)])
@@ -1426,7 +1426,7 @@ def view_trajectory(
             edges.append(np.array([[path[i], path[i+1]] for i in range(len(path)-1)]))
             weights.append((sum([G[path[i]][path[i+1]]['weight'] for i in range(len(path)-1)]))/sum([np.linalg.norm(data_pos[path[i]]-data_pos[path[i+1]]) for i in range(len(path)-1)]))
             dists.append(sum([np.linalg.norm(data_pos[path[i]]-data_pos[path[i+1]]) for i in range(len(path)-1)]))
-        path_all.append(pathes)
+        path_all[source_cluster+'_'+target_clusters[i_trg_]] = pathes
         ax.scatter(data_pos[trg_set_,0],data_pos[trg_set_,1],color=cmap_(i_trg_),zorder=20,marker='o',s=20)
         for i in range(n_cells_):
             ax.plot(data_pos[pathes[i],0],data_pos[pathes[i],1],color=cmap_(i_trg_),zorder=10,ls=':')
@@ -1434,27 +1434,63 @@ def view_trajectory(
     ax.axis('off')
     adata.uns[path_key] = path_all
 
-def path_gene_profile(
+
+def gene_dynamics(
+        adata,
+        source_cluster,
+        target_clusters,
+        path_key = 'path',
+        exp_key = None,
+        gene_dynamics_key = 'gene_dynamics',
+        n_div = 100,
+    ):
+
+    if exp_key == None:
+        if scipy.sparse.issparse(adata.X): data_exp = adata.X.toarray()
+        else: data_exp = adata.X
+    else:
+        data_exp = adata.layers[exp_key]
+    path = adata.uns[path_key]
+
+    gene_dynamics_ = {}
+    for i in range(len(path)):
+        name_ = source_cluster+'_'+target_clusters[i]
+        x_data,y_data = np.empty(0,dtype=float),np.empty([0,adata.shape[1]],dtype=float)
+        for pi in path[name_]:
+            x_data = np.append(x_data,np.linspace(0,1,len(pi)))
+            y_data = np.vstack((y_data,data_exp[pi]))
+
+        X = x_data[:, np.newaxis]
+        poly = PolynomialFeatures(degree=10)
+        X_poly = poly.fit_transform(X)
+        model = LinearRegression()
+        model.fit(X_poly, y_data)
+        plot_x = np.linspace(0,1,n_div)
+        gene_dynamics_[source_cluster+'_'+target_clusters[i]] = model.predict(poly.fit_transform(plot_x[:, np.newaxis]))
+    adata.uns[gene_dynamics_key] = gene_dynamics_
+    print('Done the computation of gene dynamics')
+    
+
+
+
+def gene_dynamics_plot(
     adata,
     source_cluster,
     target_clusters,
     genes,
-    cluster_key = 'clusters',
     path_key = 'path',
     exp_key = None,
+    gene_dynamics_key = 'gene_dynamics',
     fontsize_title = 16,
     fontsize_label = 14,
     fontsize_legend = 12,
 ):
     
-    kwargs_arg = check_arguments(adata, verbose = True)
+    # kwargs_arg = check_arguments(adata, verbose=True)
 
-    if sum(adata.obs[cluster_key].values == source_cluster) == 0:
-        raise KeyError('Cluster %s was not found' % source_cluster)
-    for trg_ in target_clusters:
-        if sum(adata.obs[cluster_key].values == source_cluster) == 0:
-            raise KeyError('Cluster %s was not found' % trg_)
-    
+    if gene_dynamics_key not in adata.uns.keys():
+        gene_dynamics(adata, source_cluster,target_clusters,path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=100)
+
     if exp_key == None:
         if scipy.sparse.issparse(adata.X): data_exp = adata.X.toarray()
         else: data_exp = adata.X
@@ -1466,23 +1502,84 @@ def path_gene_profile(
     for gene in genes:
         if gene in adata.var.index:
             fig = plt.figure(figsize=(10,6))
-            for i in range(len(path)):
+            for i in range(len(target_clusters)):
+                name_ = source_cluster+'_'+target_clusters[i]
                 x_data,y_data = np.empty(0,dtype=float),np.empty(0,dtype=float)
-                for pi in path[i]:
+                for pi in path[name_]:
                     x_data = np.append(x_data,np.linspace(0,1,len(pi)))
                     y_data = np.append(y_data,data_exp[:,adata.var.index==gene][pi])
-                X = x_data[:, np.newaxis]
-                poly = PolynomialFeatures(degree=10)
-                X_poly = poly.fit_transform(X)
-                model = LinearRegression()
-                model.fit(X_poly, y_data)
                 plt.scatter(x_data, y_data,color=cmap_(i),alpha=0.05,zorder=0)
-                plot_x = np.linspace(0,1,100)
-                plt.plot(plot_x, model.predict(poly.fit_transform(plot_x[:, np.newaxis])),color='w',lw=8,zorder=1)
-                plt.plot(plot_x, model.predict(poly.fit_transform(plot_x[:, np.newaxis])),color=cmap_(i),lw=5,label=target_clusters[i],zorder=2)
+                dynamics_ = adata.uns[gene_dynamics_key][name_][:,adata.var.index==gene]
+                plot_x = np.linspace(0,1,len(dynamics_))
+                plt.plot(plot_x, dynamics_,color='w',lw=8,zorder=1)
+                plt.plot(plot_x, dynamics_,color=cmap_(i),lw=5,label=target_clusters[i],zorder=2)
             plt.legend(bbox_to_anchor=(1.05, 0.5), loc='center left', borderaxespad=0,title='Target', fontsize=fontsize_legend, title_fontsize=fontsize_legend)
             plt.xticks([0,1],['Source\n(%s)' % source_cluster,'Target'],fontsize=fontsize_label)
             plt.title(gene,fontsize=fontsize_title)
             plt.show()
         else:
             print('Gene \"%s\" was not found' % gene)
+
+
+import matplotlib.animation as anm
+import IPython.display
+import matplotlib.patches as patches
+from adjustText import adjust_text
+
+def gene_dynamics_DEG(
+        adata,
+        source_cluster,
+        target_clusters,
+        gene_dynamics_key = 'gene_dynamics',
+        n_div = 100,
+        fontsize_label = 14,
+        fontsize_text = 12,
+        DEG_min = 1,
+        DEG_rate = 0.25,
+        save_dir = '.',
+    ):
+    n_plot_ = int(len(target_clusters)*(len(target_clusters)-1)/2)
+    cmap_ = plt.get_cmap("tab10")
+    gene_dynamics_ = adata.uns[gene_dynamics_key]
+    k = 0
+    for i in range(len(target_clusters)):
+        for j in range(i+1,len(target_clusters)):
+            name_i_ = source_cluster+'_'+target_clusters[i]
+            name_j_ = source_cluster+'_'+target_clusters[j]
+            t = 90
+            fig = plt.figure(figsize=(8,8))
+            max_val_ = max(np.max(gene_dynamics_[name_i_]),np.max(gene_dynamics_[name_j_]))
+            lim = np.array([-0.01*max_val_,1.01*max_val_])
+            k = k+1
+            def update(t):
+                print('\rComputing %s vs %s (%d/%d) %d/%d' % (target_clusters[i],target_clusters[j],k,n_plot_,t+1,n_div),end='')
+                idx_DEG_i_ = (gene_dynamics_[name_j_][t] < gene_dynamics_[name_i_][t] - DEG_rate) & (gene_dynamics_[name_i_][t] > DEG_min)
+                idx_DEG_j_ = (gene_dynamics_[name_i_][t] < gene_dynamics_[name_j_][t] - DEG_rate) & (gene_dynamics_[name_j_][t] > DEG_min)
+                plt.cla()
+                plt.title('Time = %.02f [s]' % (t/n_div))
+                plt.scatter(gene_dynamics_[name_i_][t],gene_dynamics_[name_j_][t],s=1,color="gray",zorder=1)
+                plt.scatter(gene_dynamics_[name_i_][t][idx_DEG_i_],gene_dynamics_[name_j_][t][idx_DEG_i_],color=cmap_(i),zorder=2,s=20)
+                plt.scatter(gene_dynamics_[name_i_][t][idx_DEG_j_],gene_dynamics_[name_j_][t][idx_DEG_j_],color=cmap_(j),zorder=2,s=20)
+                texts = []
+                for g in np.arange(adata.shape[1])[idx_DEG_i_]:
+                    tx_ = plt.text(gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g],color="k",zorder=2,fontsize=fontsize_text)
+                    texts = np.append(texts,tx_)
+                for g in np.arange(adata.shape[1])[idx_DEG_j_]:
+                    tx_ = plt.text(gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g],color="k",zorder=2,fontsize=fontsize_text)
+                    texts = np.append(texts,tx_)
+                adjust_text(texts, arrowprops=dict(arrowstyle='-', color='red'))
+                plt.fill_between(lim, lim-DEG_rate, lim+DEG_rate, facecolor='lightgray',  alpha=0.5,zorder=0)
+                plt.fill([-0.01*max_val_, DEG_min, DEG_min, -0.01*max_val_], [-0.01*max_val_, -0.01*max_val_, DEG_min, DEG_min], facecolor='lightgray', alpha=0.5,zorder=0)
+                plt.xlabel(target_clusters[i],fontsize=fontsize_label,color=cmap_(i), fontweight="bold")
+                plt.ylabel(target_clusters[j],fontsize=fontsize_label,color=cmap_(j), fontweight="bold")
+                plt.xlim(lim)
+                plt.ylim(lim)
+                plt.grid(ls='--');
+
+            ani = anm.FuncAnimation(fig,update,interval=200,frames=n_div)
+            file_name = '%s/DEG_anoime_%s_%s.gif' % (save_dir,target_clusters[i],target_clusters[j])
+            ani.save(file_name)
+            print('\nSaving gif animation as %s' % file_name)
+            plt.close()
+            IPython.display.Image(file_name)
+    print('Calculation has finished.\n To show the anumations in Notebook use the followings:\n import IPython.display\nIPython.display.Image(file_name)')
