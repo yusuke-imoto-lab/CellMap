@@ -1537,6 +1537,7 @@ def gene_dynamics_DEG(
         DEG_min = 1,
         DEG_rate = 0.25,
         save_dir = '.',
+        save_type = 'gif',
     ):
     n_plot_ = int(len(target_clusters)*(len(target_clusters)-1)/2)
     cmap_ = plt.get_cmap("tab10")
