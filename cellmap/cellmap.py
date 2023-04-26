@@ -1580,6 +1580,5 @@ def gene_dynamics_DEG(
             file_name = 'DEG_anoime_%s_%s.gif' % (target_clusters[i],target_clusters[j]) if save_dir == None else '%s/DEG_anoime_%s_%s.gif' % (save_dir,target_clusters[i],target_clusters[j])
             ani.save(file_name)
             print('\nSaving gif animation as %s' % file_name)
+            IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
             plt.close()
-            IPython.display.Image(file_name)
-    print('Calculation has finished.\n To show the anumations in Notebook use the followings:\n import IPython.display\nIPython.display.Image(file_name)')
