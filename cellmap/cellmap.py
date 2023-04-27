@@ -1735,7 +1735,7 @@ def bifurcation_diagram(
         n_div = 100,
         fontsize_label = 14,
         adjusttext =False,
-        PC = 0,
+        PC = 1,
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
@@ -1750,7 +1750,9 @@ def bifurcation_diagram(
     for i in range(len(target_clusters)):
         name_i_ = source_cluster + '_' + target_clusters[i]
         samples_[i] = adata.uns['gene_dynamics'][name_i_]
-    samples_pca_ = sklearn.decomposition.PCA(n_components=2).fit_transform(np.concatenate(samples_))
+    # samples_pca_ = sklearn.decomposition.PCA(n_components=2).fit_transform(np.concatenate(samples_))
+    pca_ = sklearn.decomposition.PCA().fit(samples_[:,-1])
+    samples_pca_ = pca_.transform(np.concatenate(samples_))
     # for i in range(n_div):
     #     idx_ = np.arange(i,len(target_clusters)*n_div,n_div)
     #     samples_pca_[idx_] = samples_pca_[idx_] - samples_pca_[i]
@@ -1759,8 +1761,8 @@ def bifurcation_diagram(
     ax.text(0,samples_pca_[0,0],source_cluster+' ',fontsize=fontsize_label,va='center',ha='right')
     texts = []
     for j in range(len(target_clusters)):
-        y_ = samples_pca_[j*(n_div+1):(j+1)*(n_div+1),PC]
-        ax.plot(np.linspace(0,1,n_div),y_,lw=5,zorder=2)
+        y_ = samples_pca_[j*(n_div+1):(j+1)*(n_div+1),PC-1]
+        ax.plot(np.linspace(0,1,n_div+1),y_,lw=5,zorder=2)
         texts = np.append(texts,ax.text(1,y_[-1],' '+target_clusters[j],fontsize=fontsize_label,va='center',ha='left'))
     if adjusttext: adjust_text(texts, arrowprops=dict(arrowstyle='-', color='k'))
     for vl in vlines:
