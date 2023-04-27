@@ -43,6 +43,7 @@ tutorial/data
 tutorial/figures
 tutorial/cache
 tutorial/res
+tutorial/*.gif
 tutorial/.ipynb_checkpoints
 figures/data/*
 figures/cache

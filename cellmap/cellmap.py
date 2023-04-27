@@ -1664,7 +1664,9 @@ def gene_dynamics_DEG(
             lim = np.array([-0.01*max_val_,1.01*max_val_])
             k = k+1
             ani = anm.FuncAnimation(fig,update,interval=200,fargs=(name_i_,name_j_,max_val_,lim,i,j,k,),frames=n_div+1)
-            file_name = 'DEG_anoime_%s_%s.gif' % (target_clusters[i],target_clusters[j]) if save_dir == None else '%s/DEG_anoime_%s_%s.gif' % (save_dir,target_clusters[i],target_clusters[j])
+            file_name = 'DEG_anoime_%s_%s' % (target_clusters[i],target_clusters[j]) if save_dir == None else '%s/DEG_anoime_%s_%s' % (save_dir,target_clusters[i],target_clusters[j])
+            if len(target_genes): file_name += '_TG' + str(len(target_genes))
+            file_name += '.gif'
             IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
             print('\nSaving gif animation as %s' % file_name)
             ani.save(file_name)
@@ -1694,7 +1696,7 @@ def bifurcation_diagram(
     for i in range(len(target_clusters)):
         name_i_ = source_cluster + '_' + target_clusters[i]
         samples_[i] = adata.uns['gene_dynamics'][name_i_]
-    samples_pca_ = sklearn.decomposition.PCA().fit_transform(np.concatenate(samples_))
+    samples_pca_ = sklearn.decomposition.PCA(n_components=2).fit_transform(np.concatenate(samples_))
     # for i in range(n_div):
     #     idx_ = np.arange(i,len(target_clusters)*n_div,n_div)
     #     samples_pca_[idx_] = samples_pca_[idx_] - samples_pca_[i]
@@ -1703,8 +1705,7 @@ def bifurcation_diagram(
     ax.text(0,samples_pca_[0,0],source_cluster+' ',fontsize=fontsize_label,va='center',ha='right')
     texts = []
     for j in range(len(target_clusters)):
-        y_ = samples_pca_[j*n_div:(j+1)*n_div,1]
-        # y_[0] = 0
+        y_ = samples_pca_[j*(n_div+1):(j+1)*(n_div+1),0]
         ax.plot(np.linspace(0,1,n_div),y_,lw=5,zorder=2)
         texts = np.append(texts,ax.text(1,y_[-1],' '+target_clusters[j],fontsize=fontsize_label,va='center',ha='left'))
     if adjusttext: adjust_text(texts, arrowprops=dict(arrowstyle='-', color='k'))
