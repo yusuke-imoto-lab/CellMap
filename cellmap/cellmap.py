@@ -1561,21 +1561,33 @@ def gene_dynamics_plot(
     for gene in genes:
         if gene in adata.var.index:
             fig = plt.figure(figsize=(10,6))
+            y_data_all = []
             for i in range(len(target_clusters)):
                 name_ = source_cluster+'_'+target_clusters[i]
                 x_data,y_data = np.empty(0,dtype=float),np.empty(0,dtype=float)
                 for pi in path[name_]:
-                    x_data = np.append(x_data,np.linspace(0,1,len(pi)))
-                    y_data = np.append(y_data,data_exp[:,adata.var.index==gene][pi])
-                plt.scatter(x_data, y_data,color=cmap_(i),alpha=0.05,zorder=0)
+                    y_ = data_exp[:,adata.var.index==gene][pi].T[0]
+                    idx_ = y_>0
+                    x_data = np.append(x_data,np.linspace(0,1,len(pi))[idx_])
+                    y_data = np.append(y_data,y_[idx_])
+                if len(y_data):
+                    plt.scatter(x_data, y_data,color=cmap_(i),alpha=0.05,zorder=0)
                 dynamics_ = adata.uns[gene_dynamics_key][name_][:,adata.var.index==gene]
                 plot_x = np.linspace(0,1,len(dynamics_))
+                dynamics_[dynamics_ < 0] = 0
                 plt.plot(plot_x, dynamics_,color='w',lw=8,zorder=1)
                 plt.plot(plot_x, dynamics_,color=cmap_(i),lw=5,label=target_clusters[i],zorder=2)
+                y_data_all = np.append(y_data_all,y_data)
+            y_top_ = np.percentile(y_data_all,99)
+            plt.ylim([-0.05*y_top_,y_top_])
             plt.legend(bbox_to_anchor=(1.05, 0.5), loc='center left', borderaxespad=0,title='Target', fontsize=fontsize_legend, title_fontsize=fontsize_legend)
             plt.xticks([0,0.25,0.5,0.75,1],['Source (0)\n(%s)' % source_cluster,'0.25','0.5','0.75','Target (1)'],fontsize=fontsize_label)
             plt.title(gene,fontsize=fontsize_title)
             plt.show()
+            if save:
+                filename = '%s_%s' % (save_filename,gene) if save_dir == None else '%s/%s_%s' % (save_dir,save_filename,gene)
+                fig.savefig(filename+'.png', bbox_inches='tight')
+            plt.close()
         else:
             print('Gene \"%s\" was not found' % gene)
 
@@ -1725,10 +1737,10 @@ def gene_dynamics_DEG(
             ani = anm.FuncAnimation(fig,update,interval=200,fargs=(name_i_,name_j_,max_val_,lim,i,j,k,),frames=n_div+1)
             if len(target_genes): file_name += '_TG' + str(len(target_genes))
             IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
-            print('\nSaving gif animation as %s' % file_name)
             if save:
-                file_name = '%s_%s_%s.gif' % (save_filename,target_clusters[i],target_clusters[j]) if save_dir == None else '%s/%s_%s_%s.gif' % (save_dir,save_filename,target_clusters[i],target_clusters[j])
-                ani.save(file_name)
+                filename = '%s_%s_%s.gif' % (save_filename,target_clusters[i],target_clusters[j]) if save_dir == None else '%s/%s_%s_%s.gif' % (save_dir,save_filename,target_clusters[i],target_clusters[j])
+                print('\nSaving gif animation as %s' % filename)
+                ani.save(filename)
             plt.close()
 
 def bifurcation_diagram(
