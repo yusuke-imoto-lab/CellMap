@@ -1540,6 +1540,9 @@ def gene_dynamics_plot(
     fontsize_title = 16,
     fontsize_label = 14,
     fontsize_legend = 12,
+    save = False,
+    save_dir = None,
+    save_filename = 'gene_dynamics_plot',
 ):
     
     # kwargs_arg = check_arguments(adata, verbose=True)
@@ -1593,11 +1596,13 @@ def gene_dynamics_DEG(
         fontsize_legend = 10,
         DEG_min = 1.0,
         DEG_rate = 0.3,
-        save_dir = None,
         save_type = 'gif',
         adjusttext = True,
         max_num_annotations = 10,
         max_num_legend = 40,
+        save = False,
+        save_dir = None,
+        save_filename = 'gene_dynamics_DEG',
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
@@ -1606,6 +1611,7 @@ def gene_dynamics_DEG(
     n_plot_ = int(len(target_clusters)*(len(target_clusters)-1)/2)
     cmap_ = plt.get_cmap("tab10")
     gene_dynamics_ = adata.uns[gene_dynamics_key]
+    matplotlib.rcParams['animation.embed_limit'] = 2**128
     # def update(t,name_i_,name_j_,max_val_,lim,i,j,k):
     #     print('\rcomputing %s vs %s (%d/%d) %d/%d' % (target_clusters[i],target_clusters[j],k,n_plot_,t+1,n_div),end='')
     #     idx_DEG_i_ = np.arange(adata.shape[1])[(gene_dynamics_[name_j_][t] < gene_dynamics_[name_i_][t] - DEG_rate) & (gene_dynamics_[name_i_][t] > DEG_min)]
@@ -1717,12 +1723,12 @@ def gene_dynamics_DEG(
             lim = np.array([-0.01*max_val_,1.01*max_val_])
             k = k+1
             ani = anm.FuncAnimation(fig,update,interval=200,fargs=(name_i_,name_j_,max_val_,lim,i,j,k,),frames=n_div+1)
-            file_name = 'DEG_anoime_%s_%s' % (target_clusters[i],target_clusters[j]) if save_dir == None else '%s/DEG_anoime_%s_%s' % (save_dir,target_clusters[i],target_clusters[j])
             if len(target_genes): file_name += '_TG' + str(len(target_genes))
-            file_name += '.gif'
             IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
             print('\nSaving gif animation as %s' % file_name)
-            ani.save(file_name)
+            if save:
+                file_name = '%s_%s_%s.gif' % (save_filename,target_clusters[i],target_clusters[j]) if save_dir == None else '%s/%s_%s_%s.gif' % (save_dir,save_filename,target_clusters[i],target_clusters[j])
+                ani.save(file_name)
             plt.close()
 
 def bifurcation_diagram(
