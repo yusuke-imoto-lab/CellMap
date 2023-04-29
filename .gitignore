@@ -37,6 +37,7 @@ poetry.toml
 cellmap/CellMap_test_pancreas.ipynb
 cellmap/*.csv
 cellmap/*.gif
+cellmap/*.html
 cellmap/data/*
 cellmap/.ipynb_checkpoints
 tutorial/data
