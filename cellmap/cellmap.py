@@ -2008,7 +2008,7 @@ def culc_gene_atlas(
         texts_= np.append(texts_,txt_)
         index_ = np.append(index_,source_cluster + '_' + target_clusters[i] + '_' + gene_list_)
         adata.var['clusters_'+name_i_] = -np.ones(adata.shape[1],dtype=int)
-        adata.var['clusters_'+name_i_][idx_] = adata.uns['gene_atlas']['clusters'][s_:e_]
+        adata.var['clusters_'+name_i_][idx_] = clusters_['clusters'][s_:e_]
         s_ += sum(idx_)
 
     adata.uns[gene_atlas_key] = {
