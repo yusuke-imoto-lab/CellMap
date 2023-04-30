@@ -2360,33 +2360,48 @@ def find_DEG_time(
     idx_t_n_ = np.arange(n_div+1)[(np.linspace(0,1,n_div+1) <= time)]
     idx_t_p_ = np.arange(n_div+1)[(np.linspace(0,1,n_div+1) >= time)]
 
-    i,j = 0,1
-    name_i_ = source_cluster + '_' + target_clusters[i]
-    name_j_ = source_cluster + '_' + target_clusters[j]
-    gene_dynamics_ = adata.uns[gene_dynamics_key]
-
-    max_i_,max_j_ = np.max(gene_dynamics_[name_i_],axis=0),np.max(gene_dynamics_[name_j_],axis=0)
-    idx_max_ = (max_i_ > threshold_min) & (max_j_ > threshold_min)
-
-    vol_p_ = np.sum(np.abs(gene_dynamics_[name_i_][idx_t_p_]-gene_dynamics_[name_j_][idx_t_p_]),axis=0)
-    vol_n_ = np.sum(np.abs(gene_dynamics_[name_i_][idx_t_n_]-gene_dynamics_[name_j_][idx_t_n_]),axis=0)
-    diff_ = vol_p_/(1e-5+vol_n_)
-    diff_order_ = np.argsort(diff_[idx_max_])[::-1]
+    columns_ = []
+    for i in range(len(target_clusters)):
+        for j in range(i+1,len(target_clusters)):
+            columns_ = np.append(columns_,target_clusters[i]+'_vs_'+target_clusters[j])
 
     cmap_ = plt.get_cmap("tab10")
     vlines = [0,0.2,0.4,0.6,0.8,1]
-    vline_labels = np.append(np.append('Source (0)\n%s' % source_cluster,np.array(vlines)[1:-1]),'Target (1)')
-    for i_ in range(n_genes):
-        fig,ax = plt.subplots(1,1,figsize=(8,2),tight_layout=True)
-        ax.plot(np.linspace(0,1,n_div+1),gene_dynamics_[name_i_][:,idx_max_][:,diff_order_[i_]],color=cmap_(i),zorder=2)
-        ax.text(1,gene_dynamics_[name_i_][:,idx_max_][:,diff_order_[i_]][-1],' '+target_clusters[i],fontsize=fontsize_label,va='center',ha='left')
-        ax.plot(np.linspace(0,1,n_div+1),gene_dynamics_[name_j_][:,idx_max_][:,diff_order_[i_]],color=cmap_(j),zorder=2)
-        ax.text(1,gene_dynamics_[name_j_][:,idx_max_][:,diff_order_[i_]][-1],' '+target_clusters[j],fontsize=fontsize_label,va='center',ha='left')
-        ax.set_title(adata.var.index[idx_max_][diff_order_[i_]])
-        ax.axvline(time,color='r',zorder=1)
-        ax.text(time,0.95,str(time)+' ',color='r',zorder=1,va='top',ha='right',transform=ax.transAxes)
-        ax.set_xlim([0,1])
-        ax.set_xticks(vlines)
-        ax.set_xticklabels(vline_labels,fontsize=fontsize_label)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
+    sign_dict_ = {'1':'+','-1':'-'}
+    out_pd_ = pd.DataFrame(index=(np.arange(n_genes)+1),columns=pd.MultiIndex.from_product([list(columns_),[]]))
+    for i in range(len(target_clusters)):
+        for j in range(i+1,len(target_clusters)):
+            
+            name_i_ = source_cluster + '_' + target_clusters[i]
+            name_j_ = source_cluster + '_' + target_clusters[j]
+            gene_dynamics_ = adata.uns[gene_dynamics_key]
+
+            max_i_,max_j_ = np.max(gene_dynamics_[name_i_],axis=0),np.max(gene_dynamics_[name_j_],axis=0)
+            idx_max_ = (max_i_ > threshold_min) & (max_j_ > threshold_min)
+
+            vol_p_ = np.sum(np.abs(gene_dynamics_[name_i_][idx_t_p_]-gene_dynamics_[name_j_][idx_t_p_]),axis=0)
+            vol_n_ = np.sum(np.abs(gene_dynamics_[name_i_][idx_t_n_]-gene_dynamics_[name_j_][idx_t_n_]),axis=0)
+            diff_ = vol_p_/(1e-5+vol_n_)
+            diff_order_ = np.argsort(diff_[idx_max_])[::-1]
+
+            out_pd_[(target_clusters[i]+'_vs_'+target_clusters[j],'gene')] = adata.var.index[idx_max_][diff_order_[:n_genes]]
+            sign_ = [int(np.sign(np.sum(gene_dynamics_[name_i_][:,idx_max_][:,diff_order_[i_]][idx_t_p_]-gene_dynamics_[name_j_][:,idx_max_][:,diff_order_[i_]][idx_t_p_]))) for i_ in range(n_genes)]
+            out_pd_[(target_clusters[i]+'_vs_'+target_clusters[j],target_clusters[i])] = [sign_dict_[str(s_)] for s_ in sign_]
+            out_pd_[(target_clusters[i]+'_vs_'+target_clusters[j],target_clusters[j])] = [sign_dict_[str(-s_)] for s_ in sign_]
+
+            vline_labels = np.append(np.append('Source (0)\n%s' % source_cluster,np.array(vlines)[1:-1]),'Target (1)')
+            for i_ in range(n_genes):
+                fig,ax = plt.subplots(1,1,figsize=(8,2),tight_layout=True)
+                ax.plot(np.linspace(0,1,n_div+1),gene_dynamics_[name_i_][:,idx_max_][:,diff_order_[i_]],color=cmap_(i),zorder=2)
+                ax.text(1,gene_dynamics_[name_i_][:,idx_max_][:,diff_order_[i_]][-1],' '+target_clusters[i],fontsize=fontsize_label,va='center',ha='left')
+                ax.plot(np.linspace(0,1,n_div+1),gene_dynamics_[name_j_][:,idx_max_][:,diff_order_[i_]],color=cmap_(j),zorder=2)
+                ax.text(1,gene_dynamics_[name_j_][:,idx_max_][:,diff_order_[i_]][-1],' '+target_clusters[j],fontsize=fontsize_label,va='center',ha='left')
+                ax.set_title(adata.var.index[idx_max_][diff_order_[i_]])
+                ax.axvline(time,color='r',zorder=1)
+                ax.text(time,0.95,str(time)+' ',color='r',zorder=1,va='top',ha='right',transform=ax.transAxes)
+                ax.set_xlim([0,1])
+                ax.set_xticks(vlines)
+                ax.set_xticklabels(vline_labels,fontsize=fontsize_label)
+                ax.spines['top'].set_visible(False)
+                ax.spines['right'].set_visible(False)
+    display(out_pd_)
