@@ -1213,7 +1213,6 @@ def create_dgraph_potential(
     basis = 'umap',
     map_key = None,
     potential_key = 'potential',
-    graph_key = 'CellMap_graph',
     cutedge_vol  = None,
     cutedge_length = None,
     ):
@@ -1312,6 +1311,9 @@ def view_trajectory(
     cutedge_vol  = None,
     cutedge_length = None,
     figsize = (10,8),
+    save = False,
+    save_dir = None,
+    save_filename = 'trajectory',
 ):
 
     kwargs_arg = check_arguments(adata, verbose = True, basis=basis)
@@ -1404,6 +1406,9 @@ def view_trajectory(
             ax.plot(data_pos[pathes[i],0],data_pos[pathes[i],1],color=cmap_(i_trg_),zorder=10,ls='-',lw=2,alpha=0.3)
     ax.axis('off')
     adata.uns[path_key] = path_all
+    if save:
+        filename = '%s' % (save_filename) if save_dir == None else '%s/%s' % (save_dir,save_filename)
+        fig.savefig(filename+'.png', bbox_inches='tight')
     # G = nx.Graph()
     # for i in range(len(source)):
     #     G.add_edge(source[i],target[i],w=np.linalg.norm(data_pos[source[i]]-data_pos[target[i]]))
@@ -1589,7 +1594,6 @@ def DEG_dynamics(
         DEG_min = 1.0,
         DEG_rate = 0.3,
         save_type = 'gif',
-        adjusttext = True,
         max_num_annotations = 10,
         max_num_legend = 40,
         save = False,
@@ -1680,7 +1684,6 @@ def DEG_dynamics(
         for g in np.arange(adata.shape[1])[idx_DEG_leg_i_]: legend_i_ += '(%.02f, %.02f)  %s\n' % (gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g])
         legend_j_ = ''
         for g in np.arange(adata.shape[1])[idx_DEG_leg_j_]: legend_j_ += '(%.02f, %.02f)  %s\n' % (gene_dynamics_[name_i_][t][g],gene_dynamics_[name_j_][t][g],adata.var.index[g])
-        # if adjusttext: adjustText.adjust_text(texts, arrowprops=dict(arrowstyle='-', color='k'),ax=ax2)
         ax2.text(0.9*(lim[1]-lim[0])+lim[0], 0.1*(lim[1]-lim[0])+lim[0], str(len(idx_DEG_i_)) , ha='center', va='center', fontsize=fontsize_nDEG,color=cmap_(i), fontweight="bold",zorder=3)
         ax2.text(0.1*(lim[1]-lim[0])+lim[0], 0.9*(lim[1]-lim[0])+lim[0], str(len(idx_DEG_j_)) , ha='center', va='center', fontsize=fontsize_nDEG,color=cmap_(j), fontweight="bold",zorder=3)
         ax2.fill_between(lim, lim-DEG_rate, lim+DEG_rate, facecolor='lightgray',  alpha=0.5,zorder=0)
@@ -2008,7 +2011,7 @@ def culc_gene_atlas(
         texts_= np.append(texts_,txt_)
         index_ = np.append(index_,source_cluster + '_' + target_clusters[i] + '_' + gene_list_)
         adata.var['clusters_'+name_i_] = -np.ones(adata.shape[1],dtype=int)
-        adata.var['clusters_'+name_i_][idx_] = clusters_['clusters'][s_:e_]
+        adata.var['clusters_'+name_i_][idx_] = clusters_[s_:e_]
         s_ += sum(idx_)
 
     adata.uns[gene_atlas_key] = {
