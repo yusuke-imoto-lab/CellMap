@@ -39,6 +39,7 @@ cellmap/*.csv
 cellmap/*.gif
 cellmap/*.html
 cellmap/data/*
+cellmap/output
 cellmap/.ipynb_checkpoints
 tutorial/data
 tutorial/figures

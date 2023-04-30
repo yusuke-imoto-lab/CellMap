@@ -524,7 +524,8 @@ def view(
     cutedge_length = None,
     title = '',
     save = False,
-    filename = 'CellMap_view',
+    save_dir = None,
+    save_filename = 'CellMap_view',
     figsize = None,
     fontsize_text = 16,
     cbar = True,
@@ -562,7 +563,9 @@ def view(
     ax.axis('off')
     ax.set_title(title,fontsize=18)
     if cbar: plt.colorbar(sc,aspect=20, pad=0.01, orientation='vertical').set_label(color_key,fontsize=20)
-    if save: fig.savefig(filename+'.png', bbox_inches='tight')
+    if save:
+        filename = '%s' % (save_filename) if save_dir == None else '%s/%s' % (save_dir,save_filename)
+        fig.savefig(filename+'.png', bbox_inches='tight')
 
 
 def view_cluster(
@@ -698,7 +701,8 @@ def view_stream_line(
     cutedge_length = None,
     title = '',
     save = False,
-    filename = 'CellMap_stream_line',
+    save_dir = None,
+    save_filename = 'CellMap_stream_line',
     figsize = (24,6),
     fontsize = 18,
     cbar = False,
@@ -739,7 +743,9 @@ def view_stream_line(
                     txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground='w')])
         else:
             print('There is no cluster key \"%s\" in adata.obs' % cluster_key)
-    if save: fig.savefig(filename+'.png', bbox_inches='tight')
+    if save:
+        filename = '%s' % (save_filename) if save_dir == None else '%s/%s' % (save_dir,save_filename)
+        fig.savefig(filename+'.png', bbox_inches='tight')
 
 
 def view_quiver(
@@ -870,7 +876,6 @@ def view_3D(
     title = 'Landscape',
     bgcolor = "white",
     gridcolor = "gray",
-    edges_color='lightgray',
     seed = None,
     n_points = 500,
     save = False,
@@ -1593,12 +1598,12 @@ def DEG_dynamics(
         fontsize_legend = 10,
         DEG_min = 1.0,
         DEG_rate = 0.3,
-        save_type = 'gif',
         max_num_annotations = 10,
         max_num_legend = 40,
         save = False,
         save_dir = None,
         save_filename = 'DEG_dynamics',
+        save_type = 'gif',
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
@@ -1718,9 +1723,23 @@ def DEG_dynamics(
             if save:
                 filename = '%s_%s_%s' % (save_filename,target_clusters[i],target_clusters[j]) if save_dir == None else '%s/%s_%s_%s' % (save_dir,save_filename,target_clusters[i],target_clusters[j])
                 if len(target_genes): filename += '_TG' + str(len(target_genes))
-                filename += '.gif'
-                print('\nSaving gif animation as %s' % filename)
-                ani.save(filename)
+                if save_type in ['gif','video','animetion']:
+                    filename += '.gif'
+                    print('\nSaving gif animation as %s...' % filename)
+                    ani.save(filename)
+                elif save_type in ['image','png','jpg','jpeg']:
+                    if save_type == 'image': save_type = 'png'
+                    print('\nSaving gif animation as %s' % filename)
+                    for t in range(n_div+1):
+                        fig = plt.figure(figsize=(14,10),tight_layout=True)
+                        grid = plt.GridSpec(10,14)
+                        ax1 = fig.add_subplot(grid[0:2,0:12])
+                        ax2 = fig.add_subplot(grid[2:10,0:8])
+                        ax3 = fig.add_subplot(grid[2:10,8:14])
+                        update(t,name_i_,name_j_,max_val_,lim,i,j,k)
+                        filename_ = '%s_%03d.%s' % (filename,t,save_type)
+                        fig.savefig(filename_, bbox_inches='tight')
+                        plt.close()
             plt.close()
 
 def DEG_dynamics_clusters(
@@ -1739,12 +1758,12 @@ def DEG_dynamics_clusters(
         fontsize_legend = 10,
         DEG_min = 1.0,
         DEG_rate = 0.3,
-        save_type = 'gif',
         max_num_annotations = 10,
         max_num_legend = 25,
         save = False,
         save_dir = None,
         save_filename = 'DEG_dynamics',
+        save_type = 'gif',
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
@@ -1864,16 +1883,32 @@ def DEG_dynamics_clusters(
             max_val_ = max(np.max(gene_dynamics_[name_i_]),np.max(gene_dynamics_[name_j_]))
             lim = np.array([-0.01*max_val_,1.01*max_val_])
             k = k+1
-            n_clusters = max(np.max(adata.var['clusters_'+name_i_]),np.max(adata.var['clusters_'+name_j_]))+1
             ani = anm.FuncAnimation(fig,update,interval=200,fargs=(name_i_,name_j_,max_val_,lim,i,j,k,),frames=n_div+1)
             IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
+            plt.close()
             if save:
                 filename = '%s_%s_%s' % (save_filename,target_clusters[i],target_clusters[j]) if save_dir == None else '%s/%s_%s_%s' % (save_dir,save_filename,target_clusters[i],target_clusters[j])
                 if len(target_genes): filename += '_TG' + str(len(target_genes))
-                filename += '.gif'
-                print('\nSaving gif animation as %s' % filename)
-                ani.save(filename)
-            plt.close()
+                if save_type in ['gif','video','animetion']:
+                    filename += '.gif'
+                    print('\nSaving gif animation as %s' % filename)
+                    ani.save(filename)
+                elif save_type in ['image','png','jpg','jpeg']:
+                    matplotlib.use('Agg')
+                    if save_type == 'image': save_type = 'png'
+                    print('\nSaving gif animation as %s' % filename)
+                    for t in range(n_div+1):
+                        fig = plt.figure(figsize=(14,10),tight_layout=True)
+                        grid = plt.GridSpec(10,14)
+                        ax1 = fig.add_subplot(grid[0:2,0:12])
+                        ax2 = fig.add_subplot(grid[2:10,0:8])
+                        ax3 = fig.add_subplot(grid[2:10,8:14])
+                        update(t,name_i_,name_j_,max_val_,lim,i,j,k)
+                        filename_ = '%s_%03d.%s' % (filename,t,save_type)
+                        fig.savefig(filename_, bbox_inches='tight')
+                        plt.close()
+                    matplotlib.use('TkAgg')
+                    
 
 def culc_bifurcation_diagram(
         adata,
@@ -1917,6 +1952,9 @@ def bifurcation_diagram(
         fontsize_label = 14,
         adjusttext =False,
         PC = 1,
+        save = False,
+        save_dir = None,
+        save_filename = 'bifurcation_diagram',
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
@@ -1952,6 +1990,9 @@ def bifurcation_diagram(
     ax.yaxis.set_visible(False)
     ax.set_xticks(vlines)
     ax.set_xticklabels(vline_labels,fontsize=fontsize_label)
+    if save:
+        filename = '%s' % (save_filename) if save_dir == None else '%s/%s' % (save_dir,save_filename)
+        fig.savefig(filename+'.png', bbox_inches='tight')
 
 def culc_gene_atlas(
         adata,
@@ -2042,6 +2083,7 @@ def gene_atlas(
         save = False,
         save_dir = None,
         save_filename = 'gene_atlas',
+        save_type = 'html',
     ):
     if gene_atlas_key not in adata.uns.keys():
         culc_gene_atlas(adata,source_cluster,target_clusters,gene_dynamics_key = gene_dynamics_key, gene_atlas_key=gene_atlas_key,
@@ -2196,11 +2238,21 @@ def gene_atlas(
         annotations=annotations
     )
 
-    fig = go.Figure(data=data_clusters_, layout=layout)
-    pio.show(fig)
+    fig1 = go.Figure(data=data_clusters_, layout=layout)
+    pio.show(fig1)
 
-    fig = go.Figure(data=data_celltypes_, layout=layout)
-    pio.show(fig)
+    fig2 = go.Figure(data=data_celltypes_, layout=layout)
+    pio.show(fig2)
+
+    if save:
+        filename = '%s' % (save_filename) if save_dir == None else '%s/%s' % (save_dir,save_filename)
+        if save_type in ['png','pdf','svg','eps']:
+            pio.write_image(fig1, filename + '_cluster.' + save_type)
+            pio.write_image(fig2, filename + '_celltype.' + save_type)
+        if save_type in ['html']:
+            plotly.offline.plot(fig1, filename=filename + '_cluster.' + save_type)
+            plotly.offline.plot(fig2, filename=filename + '_celltype.' + save_type)
+
 
 
 def gene_dynamics_clusters(
