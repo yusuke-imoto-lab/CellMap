@@ -1907,7 +1907,7 @@ def DEG_dynamics_clusters(
                         filename_ = '%s_%03d.%s' % (filename,t,save_type)
                         fig.savefig(filename_, bbox_inches='tight')
                         plt.close()
-                    matplotlib.use('TkAgg')
+                    matplotlib.use('module://matplotlib_inline.backend_inline')
                     
 
 def culc_bifurcation_diagram(
@@ -2340,7 +2340,7 @@ def gene_dynamics_clusters(
         pio.show(fig)
 
 
-def find_DEG_time(
+def key_gene_dynamics(
         adata,
         source_cluster,
         target_clusters,
@@ -2352,6 +2352,9 @@ def find_DEG_time(
         gene_dynamics_key = 'gene_dynamics',
         n_div = 100,
         fontsize_label = 10,
+        save = False,
+        save_dir = None,
+        save_filename = 'key_gene_dynamics',
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
@@ -2404,4 +2407,9 @@ def find_DEG_time(
                 ax.set_xticklabels(vline_labels,fontsize=fontsize_label)
                 ax.spines['top'].set_visible(False)
                 ax.spines['right'].set_visible(False)
+                if save:
+                    filename = '%s' % (save_filename) if save_dir == None else '%s/%s' % (save_dir,save_filename)
+                    filename += target_clusters[i] + '_' + target_clusters[j]
+                    filename += '_{}'.format(round(time, len(str(n_div)))) + '_' + '%02d_' % (i_+1) + adata.var.index[idx_max_][diff_order_[i_]]
+                    fig.savefig(filename+'.png', bbox_inches='tight')
     display(out_pd_)
