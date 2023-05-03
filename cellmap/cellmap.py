@@ -1479,7 +1479,7 @@ def view_trajectory(
     # adata.uns[path_key] = path_all
 
 
-def culc_gene_dynamics(
+def calc_gene_dynamics(
         adata,
         source_cluster,
         target_clusters,
@@ -1487,6 +1487,7 @@ def culc_gene_dynamics(
         exp_key = None,
         gene_dynamics_key = 'gene_dynamics',
         n_div = 100,
+        degree = 10,
     ):
 
     if exp_key == None:
@@ -1505,7 +1506,7 @@ def culc_gene_dynamics(
             y_data = np.vstack((y_data,data_exp[pi]))
 
         X = x_data[:, np.newaxis]
-        poly = sklearn.preprocessing.PolynomialFeatures(degree=10)
+        poly = sklearn.preprocessing.PolynomialFeatures(degree=degree)
         X_poly = poly.fit_transform(X)
         model = sklearn.linear_model.LinearRegression()
         model.fit(X_poly, y_data)
@@ -1537,7 +1538,7 @@ def gene_dynamics_plot(
     # kwargs_arg = check_arguments(adata, verbose=True)
 
     if gene_dynamics_key not in adata.uns.keys():
-        culc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
+        calc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
 
     if exp_key == None:
         if scipy.sparse.issparse(adata.X): data_exp = adata.X.toarray()
@@ -1607,7 +1608,7 @@ def DEG_dynamics(
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
-        culc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
+        calc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
 
     n_plot_ = int(len(target_clusters)*(len(target_clusters)-1)/2)
     cmap_ = plt.get_cmap("tab10")
@@ -1767,7 +1768,7 @@ def DEG_dynamics_clusters(
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
-        culc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
+        calc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
 
     n_plot_ = int(len(target_clusters)*(len(target_clusters)-1)/2)
     cmap_ = plt.get_cmap("tab10")
@@ -1910,7 +1911,7 @@ def DEG_dynamics_clusters(
                     matplotlib.use('module://matplotlib_inline.backend_inline')
                     
 
-def culc_bifurcation_diagram(
+def calc_bifurcation_diagram(
         adata,
         source_cluster,
         target_clusters,
@@ -1923,7 +1924,7 @@ def culc_bifurcation_diagram(
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
-        culc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
+        calc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
 
     name_i_ = source_cluster + '_' + target_clusters[0]
     samples_ = np.empty([len(target_clusters),adata.uns['gene_dynamics'][name_i_].shape[0],adata.uns['gene_dynamics'][name_i_].shape[1]],dtype=float)
@@ -1958,10 +1959,10 @@ def bifurcation_diagram(
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
-        culc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
+        calc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
     
     if bifurcation_diagram_key not in adata.uns.keys():
-        culc_bifurcation_diagram(
+        calc_bifurcation_diagram(
         adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, 
             bifurcation_diagram_key=bifurcation_diagram_key, n_div=n_div, PC=PC)
 
@@ -1994,7 +1995,7 @@ def bifurcation_diagram(
         filename = '%s' % (save_filename) if save_dir == None else '%s/%s' % (save_dir,save_filename)
         fig.savefig(filename+'.png', bbox_inches='tight')
 
-def culc_gene_atlas(
+def calc_gene_atlas(
         adata,
         source_cluster,
         target_clusters,
@@ -2012,7 +2013,7 @@ def culc_gene_atlas(
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
-        culc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
+        calc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
 
     gene_dynamics_ = adata.uns[gene_dynamics_key]
     gene_dynamics_all_ = np.empty([0,n_div+1],dtype=float)
@@ -2086,12 +2087,12 @@ def gene_atlas(
         save_type = 'html',
     ):
     if gene_atlas_key not in adata.uns.keys():
-        culc_gene_atlas(adata,source_cluster,target_clusters,gene_dynamics_key = gene_dynamics_key, gene_atlas_key=gene_atlas_key,
+        calc_gene_atlas(adata,source_cluster,target_clusters,gene_dynamics_key = gene_dynamics_key, gene_atlas_key=gene_atlas_key,
             n_div = n_div,n_neighbors = n_neighbors,min_dist = min_dist,seed = seed,threshold_min=threshold_min, 
             n_clusters = n_clusters,n_components = n_components,
         )
     elif n_clusters != len(np.unique(adata.uns[gene_atlas_key]['clusters'])):
-        culc_gene_atlas(adata,source_cluster,target_clusters,gene_dynamics_key = gene_dynamics_key, gene_atlas_key = gene_atlas_key,
+        calc_gene_atlas(adata,source_cluster,target_clusters,gene_dynamics_key = gene_dynamics_key, gene_atlas_key = gene_atlas_key,
             n_div=n_div,n_neighbors = n_neighbors,min_dist = min_dist,seed = seed,threshold_min=threshold_min, 
             n_clusters = n_clusters,n_components = n_components,
         )
@@ -2272,7 +2273,7 @@ def gene_dynamics_clusters(
     ):
     
     if gene_atlas_key not in adata.uns.keys():
-        culc_gene_atlas(adata,source_cluster,target_clusters,gene_dynamics_key = gene_dynamics_key,ene_atlas_key = gene_atlas_key,
+        calc_gene_atlas(adata,source_cluster,target_clusters,gene_dynamics_key = gene_dynamics_key,ene_atlas_key = gene_atlas_key,
             n_div = n_div,n_neighbors = n_neighbors,min_dist = min_dist,seed = seed,threshold_min=threshold_min, 
             n_clusters = n_clusters,n_components = n_components,
         )
@@ -2358,7 +2359,7 @@ def key_gene_dynamics(
     ):
 
     if gene_dynamics_key not in adata.uns.keys():
-        culc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
+        calc_gene_dynamics(adata, source_cluster, target_clusters, path_key=path_key, exp_key=exp_key, gene_dynamics_key=gene_dynamics_key, n_div=n_div)
 
     idx_t_n_ = np.arange(n_div+1)[(np.linspace(0,1,n_div+1) <= time)]
     idx_t_p_ = np.arange(n_div+1)[(np.linspace(0,1,n_div+1) >= time)]
