@@ -308,12 +308,15 @@ def Hodge_decomposition(
     if graph_method == 'Delauney':
         source, target, idx_bd_ = create_graph(exp_LD,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,cut_std=cut_std,return_type='edges_bd')
     elif graph_method == 'knn':
-        pca = sklearn.decomposition.PCA()
-        exp_HD_pca = pca.fit_transform(exp_HD)
-        n_pca = np.min(np.arange(len(pca.explained_variance_ratio_))[np.cumsum(pca.explained_variance_ratio_)>contribution_rate_pca])
+        # pca = sklearn.decomposition.PCA()
+        # exp_HD_pca = pca.fit_transform(exp_HD)
+        # n_pca = np.min(np.arange(len(pca.explained_variance_ratio_))[np.cumsum(pca.explained_variance_ratio_)>contribution_rate_pca])
+        # knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
+        # knn.fit(exp_HD_pca[:,:n_pca])
+        # distances, indices = knn.kneighbors(exp_HD_pca[:,:n_pca])
         knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
-        knn.fit(exp_HD_pca[:,:n_pca])
-        distances, indices = knn.kneighbors(exp_HD_pca[:,:n_pca])
+        knn.fit(exp_LD)
+        distances, indices = knn.kneighbors(exp_LD)
         distances, indices = distances[:,1:], indices[:,1:]
         source = np.ravel(np.repeat(np.arange(exp_HD.shape[0]).reshape((-1, 1)),n_neighbors,axis=1))
         target = np.ravel(indices)
@@ -337,10 +340,6 @@ def Hodge_decomposition(
     lap = -np.dot(div_mat,grad_mat)
     edge_vel = (1-HD_rate)*edge_vel_LD+HD_rate*edge_vel_HD
     source_term = np.dot(div_mat,edge_vel)
-    # for i in idx_bd_:
-    #     lap[i,:] = 0
-    #     lap[i,i] = 1
-    #     source_term[i] = 0
     lap_inv_ = np.linalg.pinv(lap)
     potential = np.dot(lap_inv_,source_term)
     pot_flow_ = -np.dot(grad_mat,potential)
@@ -356,64 +355,46 @@ def Hodge_decomposition(
     pot_flow_2_ = np.hstack((pot_flow_,-pot_flow_))
     rot_flow_2_ = np.hstack((rot_flow_,-rot_flow_))
     edge_vel_norm = np.linalg.norm(edge_velocity(exp_LD,vel_LD,source,target,normalization=False))
-    if graph_method == 'Delauney':
-        for i in range(adata.shape[0]):
-            idx_ = src_trg_ == i
-            ex_s = -(exp_LD[src_trg_[idx_]]-exp_LD[trg_src_[idx_]])/np.linalg.norm(exp_LD[src_trg_[idx_]]-exp_LD[trg_src_[idx_]],ord=2)
-            vel_potential[i] = edge_vel_norm*np.sum(pot_flow_2_[idx_]*ex_s.T,axis=1)
-            vel_rotation[i]  = edge_vel_norm*np.sum(rot_flow_2_[idx_]*ex_s.T,axis=1)
-            # idx_s = source == i
-            # idx_t = target == i
-            # if sum(idx_s) > 0:
-            #     ex_s = -(exp_LD[source[idx_s]]-exp_LD[target[idx_s]])/np.linalg.norm(exp_LD[source[idx_s]]-exp_LD[target[idx_s]],ord=2)
-            #     vel_potential[i] += 2*edge_vel_norm*np.sum(pot_flow_[idx_s]*ex_s.T,axis=1)
-            #     vel_rotation[i]  += 2*edge_vel_norm*np.sum(rot_flow_[idx_s]*ex_s.T,axis=1)
-            # if sum(idx_t) > 0:
-            #     ex_t = -(exp_LD[target[idx_t]]-exp_LD[source[idx_t]])/np.linalg.norm(exp_LD[target[idx_t]]-exp_LD[source[idx_t]],ord=2)
-            #     vel_potential[i] += -2*edge_vel_norm*np.sum(pot_flow_[idx_t]*ex_t.T,axis=1)
-            #     vel_rotation[i]  += -2*edge_vel_norm*np.sum(rot_flow_[idx_t]*ex_t.T,axis=1)
-        adata.obsm[pot_vkey_] = vel_potential
-        # adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
-        adata.obsm[rot_vkey_] = vel_rotation
-    elif graph_method == 'knn':
-        knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
-        knn.fit(exp_LD)
-        distances, indices = knn.kneighbors(exp_LD)
-        distances, indices = distances[:,1:], indices[:,1:]
-        for i in range(adata.shape[0]):
-            ex_s = (exp_LD[indices[i]]-exp_LD[i])/np.linalg.norm(exp_LD[indices[i]]-exp_LD[i],ord=2)
-            vel_potential[i] = -np.sum((pot_flow_[indices[i]]-pot_flow_[i])*ex_s.T,axis=1)
-            vel_rotation[i] = -np.sum((rot_flow_[indices[i]]-rot_flow_[i])*ex_s.T,axis=1)
-        adata.obsm[pot_vkey_] = vel_potential
-        # adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
-        adata.obsm[rot_vkey_] = vel_rotation
+    # if graph_method == 'Delauney':
+    for i in range(adata.shape[0]):
+        idx_ = src_trg_ == i
+        # ex_s = -(exp_LD[src_trg_[idx_]]-exp_LD[trg_src_[idx_]])/np.linalg.norm(exp_LD[src_trg_[idx_]]-exp_LD[trg_src_[idx_]],ord=2)
+        # vel_potential[i] = 2.*edge_vel_norm*np.mean(pot_flow_2_[idx_]*ex_s.T,axis=1)
+        # vel_rotation[i]  = 2.*edge_vel_norm*np.mean(rot_flow_2_[idx_]*ex_s.T,axis=1)
+        dis_ = np.linalg.norm(exp_LD[src_trg_[idx_]]-exp_LD[trg_src_[idx_]],axis=1,ord=2)
+        dis_[dis_==0] = 1
+        ex_ = -(exp_LD[src_trg_[idx_]]-exp_LD[trg_src_[idx_]]).T/dis_
+        vel_potential[i] = 4.*edge_vel_norm*np.mean(pot_flow_2_[idx_]*ex_,axis=1)
+        vel_rotation[i]  = 4.*edge_vel_norm*np.mean(rot_flow_2_[idx_]*ex_,axis=1)
+    adata.obsm[pot_vkey_] = vel_potential
+    adata.obsm[rot_vkey_] = vel_rotation
+    # elif graph_method == 'knn':
+    #     knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
+    #     knn.fit(exp_LD)
+    #     distances, indices = knn.kneighbors(exp_LD)
+    #     distances, indices = distances[:,1:], indices[:,1:]
+    #     for i in range(adata.shape[0]):
+    #         ex_s = (exp_LD[indices[i]]-exp_LD[i])/np.linalg.norm(exp_LD[indices[i]]-exp_LD[i],ord=2)
+    #         vel_potential[i] = -4.*edge_vel_norm*np.mean((pot_flow_[indices[i]]-pot_flow_[i])*ex_s.T,axis=1)
+    #         vel_rotation[i]  = -4.*edge_vel_norm*np.mean((rot_flow_[indices[i]]-rot_flow_[i])*ex_s.T,axis=1)
+    #     adata.obsm[pot_vkey_] = vel_potential
+    #     adata.obsm[rot_vkey_] = vel_rotation
     
-    # for i in idx_bd_:
-    #     lap[i,:] = 0
-    #     lap[i,i] = 1
-    # lap_inv_ = np.linalg.pinv(lap)
-    ## Solve vorticity & stream line
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((vel_LD[:,1],-vel_LD[:,0])).T,source,target,normalization=False))
     source_term_ = vorticity_
-    # source_term_[idx_bd_] = 100
     streamfunc_ = -np.dot(lap_inv_,source_term_)
-    # vorticity_ = -np.dot(lap,streamfunc_)
     adata.obs[vor_key_] = vorticity_
     adata.obs[sl_key_]  = streamfunc_-np.min(streamfunc_)
 
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[pot_vkey_][:,1],-adata.obsm[pot_vkey_][:,0])).T,source,target,normalization=False))
     source_term_ = vorticity_
-    # source_term_[idx_bd_] = 100
     streamfunc_ = -np.dot(lap_inv_,source_term_)
-    # vorticity_ = -np.dot(lap,streamfunc_)
     adata.obs[pot_vor_key_] = vorticity_
     adata.obs[pot_sl_key_] = streamfunc_-np.min(streamfunc_)
 
     vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[rot_vkey_][:,1],-adata.obsm[rot_vkey_][:,0])).T,source,target,normalization=False))
     source_term_ = vorticity_
-    # source_term_[idx_bd_] = 100
     streamfunc_ = -np.dot(lap_inv_,source_term_)
-    # vorticity_ = -np.dot(lap,streamfunc_)
     adata.obs[rot_vor_key_] = vorticity_
     adata.obs[rot_sl_key_] = streamfunc_-np.min(streamfunc_)
 
@@ -662,7 +643,6 @@ def view_stream(
     potential_vkey = 'potential_velocity',
     rotation_vkey = 'rotation_velocity',
     cluster_key = 'clusters',
-    additional_key = '',
     figsize=(24,6),
     density = 2,
     alpha = 0.3,
@@ -676,18 +656,13 @@ def view_stream(
     basis_key = 'X_%s' % basis
     data_pos = adata.obsm[basis_key]
     cluster = adata.obs[cluster_key]
-
-    vkey_ = vkey
-    pot_vkey_ = potential_vkey+additional_key
-    rot_vkey_ = rotation_vkey+additional_key
-    
     
     fig,ax = plt.subplots(1,3,figsize=figsize,tight_layout=True)
-    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=vkey_, title='RNA velocity',ax=ax[0],color=cluster_key,
+    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=vkey, title='RNA velocity',ax=ax[0],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
-    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=pot_vkey_, title='Potential flow',ax=ax[1],color=cluster_key,
+    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=potential_vkey, title='Potential flow',ax=ax[1],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
-    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=rot_vkey_, title='Rotational flow',ax=ax[2],color=cluster_key,
+    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=rotation_vkey, title='Rotational flow',ax=ax[2],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
     for i in range(3):
         texts = []
@@ -704,7 +679,6 @@ def view_stream_line(
     cluster_key = 'clusters',
     potential_key = 'potential',
     rotation_key = 'rotation',
-    additional_key = '',
     cutedge_vol  = None,
     cutedge_length = None,
     title = '',
@@ -721,9 +695,9 @@ def view_stream_line(
     basis = kwargs_arg['basis']
     basis_key = 'X_%s' % basis
     
-    key_ = ('%s_%s' % (contour_key,basis))+additional_key
-    pot_key_ = ('%s_%s_%s' % (potential_key,contour_key,basis))+additional_key
-    rot_key_ = ('%s_%s_%s' % (rotation_key,contour_key,basis))+additional_key
+    key_ = '%s_%s' % (contour_key,basis)
+    pot_key_ = '%s_%s_%s' % (potential_key,contour_key,basis)
+    rot_key_ = '%s_%s_%s' % (rotation_key,contour_key,basis)
     
     
     data_pos = adata.obsm[basis_key]
