@@ -252,7 +252,7 @@ def Hodge_decomposition(
     streamfunc_key = 'streamfunc',
     graph_key = 'CellMap_graph',
     edge_vel_key = 'edge_velocity',
-    graph_method = 'Delauney',
+    graph_method = 'knn',#'Delauney',
     HD_rate = 0.0,
     n_neighbors = 10,
     contribution_rate_pca = 0.95,
@@ -423,7 +423,7 @@ def Hodge_decomposition_genes(
     potential_vkey = 'potential_velocity',
     rotation_key = 'rotation',
     rotation_vkey = 'rotation_velocity',
-    graph_method = 'Delauney',
+    graph_method = 'knn',#'Delauney',
     n_neighbors = 10,
     cutedge_vol  = None,
     cutedge_length = None,
@@ -448,7 +448,6 @@ def Hodge_decomposition_genes(
     pot_vkey_ = '%s_%s' % (potential_vkey,basis)
     rot_vkey_ = '%s_%s' % (rotation_vkey,basis)
     
-    
     if exp_key == None:
         if scipy.sparse.issparse(adata.X):
             exp_HD = adata.X.toarray()
@@ -469,12 +468,15 @@ def Hodge_decomposition_genes(
         source, target = create_graph(exp_LD,cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type='edges')
         # source, target = np.ravel(tri_.triangles[idx_tri][:,[0,1,2]]),np.ravel(tri_.triangles[idx_tri][:,[1,2,0]])
     elif graph_method == 'knn':
-        pca = sklearn.decomposition.PCA()
-        exp_HD_pca = pca.fit_transform(exp_HD)
-        n_pca = np.min(np.arange(len(pca.explained_variance_ratio_))[np.cumsum(pca.explained_variance_ratio_)>contribution_rate])
+        # pca = sklearn.decomposition.PCA()
+        # exp_HD_pca = pca.fit_transform(exp_HD)
+        # n_pca = np.min(np.arange(len(pca.explained_variance_ratio_))[np.cumsum(pca.explained_variance_ratio_)>contribution_rate])
+        # knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
+        # knn.fit(exp_HD_pca[:,:n_pca])
+        # distances, indices = knn.kneighbors(exp_HD_pca[:,:n_pca])
         knn = sklearn.neighbors.NearestNeighbors(n_neighbors=n_neighbors+1, algorithm='kd_tree')
-        knn.fit(exp_HD_pca[:,:n_pca])
-        distances, indices = knn.kneighbors(exp_HD_pca[:,:n_pca])
+        knn.fit(exp_LD)
+        distances, indices = knn.kneighbors(exp_LD)
         distances, indices = distances[:,1:], indices[:,1:]
         source = np.ravel(np.repeat(np.arange(exp_HD.shape[0]).reshape((-1, 1)),n_neighbors,axis=1))
         target = np.ravel(indices)
