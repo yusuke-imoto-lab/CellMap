@@ -360,8 +360,8 @@ def Hodge_decomposition(
         for i in range(adata.shape[0]):
             idx_ = src_trg_ == i
             ex_s = -(exp_LD[src_trg_[idx_]]-exp_LD[trg_src_[idx_]])/np.linalg.norm(exp_LD[src_trg_[idx_]]-exp_LD[trg_src_[idx_]],ord=2)
-            vel_potential[i] = edge_vel_norm*edge_vel_norm*np.sum(pot_flow_2_[idx_]*ex_s.T,axis=1)
-            vel_rotation[i]  = edge_vel_norm*edge_vel_norm*np.sum(rot_flow_2_[idx_]*ex_s.T,axis=1)
+            vel_potential[i] = edge_vel_norm*np.sum(pot_flow_2_[idx_]*ex_s.T,axis=1)
+            vel_rotation[i]  = edge_vel_norm*np.sum(rot_flow_2_[idx_]*ex_s.T,axis=1)
             # idx_s = source == i
             # idx_t = target == i
             # if sum(idx_s) > 0:
@@ -382,7 +382,8 @@ def Hodge_decomposition(
         distances, indices = distances[:,1:], indices[:,1:]
         for i in range(adata.shape[0]):
             ex_s = (exp_LD[indices[i]]-exp_LD[i])/np.linalg.norm(exp_LD[indices[i]]-exp_LD[i],ord=2)
-            vel_potential[i] = -edge_vel_norm*np.sum((adata.obs[potential_key].values[indices[i]]-adata.obs[potential_key].values[i])*ex_s.T,axis=1)
+            vel_potential[i] = -np.sum((pot_flow_[indices[i]]-pot_flow_[i])*ex_s.T,axis=1)
+            vel_rotation[i] = -np.sum((rot_flow_[indices[i]]-rot_flow_[i])*ex_s.T,axis=1)
         adata.obsm[pot_vkey_] = vel_potential
         # adata.obsm[rot_vkey_] = adata.obsm[vel_2d_key_]-vel_potential
         adata.obsm[rot_vkey_] = vel_rotation
@@ -661,6 +662,7 @@ def view_stream(
     potential_vkey = 'potential_velocity',
     rotation_vkey = 'rotation_velocity',
     cluster_key = 'clusters',
+    additional_key = '',
     figsize=(24,6),
     density = 2,
     alpha = 0.3,
@@ -674,13 +676,18 @@ def view_stream(
     basis_key = 'X_%s' % basis
     data_pos = adata.obsm[basis_key]
     cluster = adata.obs[cluster_key]
+
+    vkey_ = vkey
+    pot_vkey_ = potential_vkey+additional_key
+    rot_vkey_ = rotation_vkey+additional_key
+    
     
     fig,ax = plt.subplots(1,3,figsize=figsize,tight_layout=True)
-    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=vkey, title='RNA velocity',ax=ax[0],color=cluster_key,
+    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=vkey_, title='RNA velocity',ax=ax[0],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
-    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=potential_vkey, title='Potential flow',ax=ax[1],color=cluster_key,
+    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=pot_vkey_, title='Potential flow',ax=ax[1],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
-    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=rotation_vkey, title='Rotational flow',ax=ax[2],color=cluster_key,
+    scv.pl.velocity_embedding_stream(adata,basis=basis,vkey=rot_vkey_, title='Rotational flow',ax=ax[2],color=cluster_key,
                                      show=False,density=density,alpha=alpha,fontsize=fontsize,legend_fontsize=0, legend_loc=None,arrow_size=2,linewidth=2,**kwargs)
     for i in range(3):
         texts = []
@@ -697,6 +704,7 @@ def view_stream_line(
     cluster_key = 'clusters',
     potential_key = 'potential',
     rotation_key = 'rotation',
+    additional_key = '',
     cutedge_vol  = None,
     cutedge_length = None,
     title = '',
@@ -713,9 +721,9 @@ def view_stream_line(
     basis = kwargs_arg['basis']
     basis_key = 'X_%s' % basis
     
-    key_ = '%s_%s' % (contour_key,basis)
-    pot_key_ = '%s_%s_%s' % (potential_key,contour_key,basis)
-    rot_key_ = '%s_%s_%s' % (rotation_key,contour_key,basis)
+    key_ = ('%s_%s' % (contour_key,basis))+additional_key
+    pot_key_ = ('%s_%s_%s' % (potential_key,contour_key,basis))+additional_key
+    rot_key_ = ('%s_%s_%s' % (rotation_key,contour_key,basis))+additional_key
     
     
     data_pos = adata.obsm[basis_key]
