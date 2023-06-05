@@ -13,6 +13,8 @@ from matplotlib import patheffects as PathEffects
 import networkx as nx
 import scanpy
 import scipy
+import scipy.sparse
+import scipy.linalg
 import scvelo as scv
 import sklearn.preprocessing
 import sklearn.mixture
@@ -66,12 +68,13 @@ def create_graph(
     tri_.set_mask(idx_mask_==False)
     edge_tri_ = np.vstack((np.vstack((tri_.triangles[idx_mask_][:,[0,1]],tri_.triangles[idx_mask_][:,[1,2]])),tri_.triangles[idx_mask_][:,[2,0]]))
     edge_tri_sort_ = np.array([np.sort(e) for e in edge_tri_])
-    np.sort(edge_tri_sort_,axis=0),np.unique(edge_tri_sort_,axis=0).shape
+    # np.sort(edge_tri_sort_,axis=0),np.unique(edge_tri_sort_,axis=0).shape
     edges_,count_ = np.unique(edge_tri_sort_,axis=0,return_counts=True)
     idx_bd_ = np.unique(edges_[count_==1].reshape(1,-1)[0])
     if return_type == 'edges': return edges_.T
     if return_type == 'edges_bd': return edges_[:,0],edges_[:,1],idx_bd_
     if return_type == 'triangles': return tri_,idx_mask_
+    if return_type == 'all': return tri_,idx_mask_,edges_[:,0],edges_[:,1],idx_bd_
 
 
 
@@ -331,12 +334,12 @@ def Hodge_decomposition(
     grad_mat[tuple(np.vstack((np.arange(n_edge_),source)))] = -1
     grad_mat[tuple(np.vstack((np.arange(n_edge_),target)))] = 1
     div_mat = -grad_mat.T
-    lap = -np.dot(div_mat,grad_mat)
+    lap_ = -(scipy.sparse.csr_matrix(div_mat)).dot(scipy.sparse.csr_matrix(grad_mat)).toarray()
     edge_vel = (1-HD_rate)*edge_vel_LD+HD_rate*edge_vel_HD
-    source_term = np.dot(div_mat,edge_vel)
-    lap_inv_ = np.linalg.pinv(lap)
-    potential = np.dot(lap_inv_,source_term)
-    pot_flow_ = -np.dot(grad_mat,potential)
+    source_term = div_mat @ edge_vel
+    lap_inv_ = scipy.linalg.pinv(lap_)
+    potential = lap_inv_ @ source_term
+    pot_flow_ = -grad_mat @ potential
     rot_flow_ = edge_vel - pot_flow_
     adata.obs[potential_key] = potential - np.min(potential)
 
@@ -371,30 +374,30 @@ def Hodge_decomposition(
         adata.obsm[rot_vkey_] = vel_rotation
     
     
-    # vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((vel_LD[:,1],-vel_LD[:,0])).T,source,target,normalization=False))
+    # vorticity_ = div_mat @ edge_velocity(exp_LD,np.vstack((vel_LD[:,1],-vel_LD[:,0])).T,source,target,normalization=False)
     div_ = np.linalg.norm(vel_LD,axis=1)
     div_[div_==0] = 1
-    vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((vel_LD[:,1]/div_,-vel_LD[:,0]/div_)).T,source,target,normalization=False))
+    vorticity_ = div_mat @ edge_velocity(exp_LD,np.vstack((vel_LD[:,1]/div_,-vel_LD[:,0]/div_)).T,source,target,normalization=False)
     source_term_ = vorticity_
-    streamfunc_ = -np.dot(lap_inv_,source_term_)
+    streamfunc_ = -lap_inv_ @ source_term_
     adata.obs[vor_key_] = vorticity_
     adata.obs[sl_key_]  = streamfunc_-np.min(streamfunc_)
 
-    # vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[pot_vkey_][:,1],-adata.obsm[pot_vkey_][:,0])).T,source,target,normalization=False))
+    # vorticity_ = div_mat @ edge_velocity(exp_LD,np.vstack((adata.obsm[pot_vkey_][:,1],-adata.obsm[pot_vkey_][:,0])).T,source,target,normalization=False)
     div_ = np.linalg.norm(adata.obsm[pot_vkey_],axis=1)
     div_[div_==0] = 1
-    vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[pot_vkey_][:,1]/div_,-adata.obsm[pot_vkey_][:,0]/div_)).T,source,target,normalization=False))
+    vorticity_ = div_mat @ edge_velocity(exp_LD,np.vstack((adata.obsm[pot_vkey_][:,1]/div_,-adata.obsm[pot_vkey_][:,0]/div_)).T,source,target,normalization=False)
     source_term_ = vorticity_
-    streamfunc_ = -np.dot(lap_inv_,source_term_)
+    streamfunc_ = -lap_inv_ @ source_term_
     adata.obs[pot_vor_key_] = vorticity_
     adata.obs[pot_sl_key_] = streamfunc_-np.min(streamfunc_)
 
-    # vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[rot_vkey_][:,1],-adata.obsm[rot_vkey_][:,0])).T,source,target,normalization=False))
+    # vorticity_ = div_mat @ edge_velocity(exp_LD,np.vstack((adata.obsm[rot_vkey_][:,1],-adata.obsm[rot_vkey_][:,0])).T,source,target,normalization=False)
     div_ = np.linalg.norm(adata.obsm[rot_vkey_],axis=1)
     div_[div_==0] = 1
-    vorticity_ = np.dot(div_mat,edge_velocity(exp_LD,np.vstack((adata.obsm[rot_vkey_][:,1]/div_,-adata.obsm[rot_vkey_][:,0]/div_)).T,source,target,normalization=False))
+    vorticity_ = div_mat @ edge_velocity(exp_LD,np.vstack((adata.obsm[rot_vkey_][:,1]/div_,-adata.obsm[rot_vkey_][:,0]/div_)).T,source,target,normalization=False)
     source_term_ = vorticity_
-    streamfunc_ = -np.dot(lap_inv_,source_term_)
+    streamfunc_ = -lap_inv_ @ source_term_
     adata.obs[rot_vor_key_] = vorticity_
     adata.obs[rot_sl_key_] = streamfunc_-np.min(streamfunc_)
 
@@ -486,7 +489,7 @@ def Hodge_decomposition_genes(
     grad_mat[tuple(np.vstack((np.arange(n_edge_),source)))] = -1
     grad_mat[tuple(np.vstack((np.arange(n_edge_),target)))] = 1
     div_mat = -grad_mat.T
-    lap = -np.dot(div_mat,grad_mat)
+    lap = -div_mat @ grad_mat
     lap_inv = np.linalg.pinv(lap)
     
     for gene in genes:
@@ -494,8 +497,8 @@ def Hodge_decomposition_genes(
         V1,V2 = vel_HD[:,adata.var.index == gene][source],vel_HD[:,adata.var.index == gene][target]
         Dis = np.linalg.norm(exp_HD[target]-exp_HD[source],axis=1)
         edge_vel = np.sum(0.5*(V1+V2)*(X2-X1),axis=1)/Dis
-        source_term = np.dot(div_mat,edge_vel)
-        potential = np.dot(lap_inv,source_term)
+        source_term = div_mat @ edge_vel
+        potential = lap_inv @ source_term
         adata.obs[potential_key+'_Gene_%s' % gene] = potential - np.min(potential)
 
 def view(
@@ -864,6 +867,7 @@ def view_3D(
     n_points = 500,
     save = False,
     filename = 'CellMap_view_3D',
+    camera = dict(eye=dict(x=1.2, y=-1.2, z=1.0)),
     **kwargs
     ):
     
@@ -883,7 +887,6 @@ def view_3D(
     tri_,idx_tri = create_graph(adata.obsm[basis_key],cutedge_vol=cutedge_vol,cutedge_length=cutedge_length,return_type = 'triangles')
     triangles = tri_.triangles[idx_tri]
 
-    camera = dict(eye=dict(x=1.2, y=-1.2, z=1.0))
     idx = np.zeros(adata.shape[0],dtype=bool)
     np.random.seed(seed)
     idx[np.random.choice(adata.shape[0],min(n_points,adata.shape[0]),replace=False)] = True
@@ -891,7 +894,7 @@ def view_3D(
     shadow = go.Mesh3d(
         x=x,
         y=y,
-        z=np.zeros(adata.shape[0]),
+        z=np.zeros(adata.shape[0])-np.min(z),
         i=triangles[:, 0],
         j=triangles[:, 1],
         k=triangles[:, 2],
@@ -1381,7 +1384,8 @@ def view_trajectory(
             # G.add_weighted_edges_from([(int(s),int(t),np.exp(-g*register)*np.linalg.norm(streamfunc_[trg_]-streamfunc_[int(t)])*np.exp(np.linalg.norm(data_pos[int(s)]-data_pos[int(t)])/dis_mean)) for s,t,g in np.vstack((source,target,grad_)).T])
             # G.add_weighted_edges_from([(int(t),int(s), np.exp(g*register)*np.linalg.norm(streamfunc_[trg_]-streamfunc_[int(t)])*np.exp(np.linalg.norm(data_pos[int(s)]-data_pos[int(t)])/dis_mean)) for s,t,g in np.vstack((source,target,grad_)).T])
             # weights_ = np.hstack((np.exp(-grad_*register)*np.abs(streamfunc_[trg_]-streamfunc_[target])*np.exp(np.linalg.norm(data_pos[source]-data_pos[target],axis=1)/dis_mean),np.exp(grad_*register)*np.abs(streamfunc_[trg_]-streamfunc_[target])*np.exp(np.linalg.norm(data_pos[source]-data_pos[target],axis=1)/dis_mean)))
-            weights_i_ = np.exp(-weights_*(adata.obs[potential_key][edges_[:,0]].values - adata.obs[potential_key][edges_[:,1]].values)*register)*np.abs(streamfunc_[trg_]-streamfunc_[edges_[:,1]])*np.exp(np.linalg.norm(data_pos[edges_[:,0]]-data_pos[edges_[:,1]],axis=1)/dis_mean)
+            #weights_i_ = np.exp(-weights_*(adata.obs[potential_key][edges_[:,0]].values - adata.obs[potential_key][edges_[:,1]].values)*register)*np.abs(streamfunc_[trg_]-streamfunc_[edges_[:,1]])*np.exp(np.linalg.norm(data_pos[edges_[:,0]]-data_pos[edges_[:,1]],axis=1)/dis_mean)
+            weights_i_ = np.abs(streamfunc_[trg_] - streamfunc_[edges_[:, 1]]) * np.exp(np.linalg.norm(data_pos[edges_[:, 0]] - data_pos[edges_[:, 1]], axis=1) / dis_mean)
             nx.set_edge_attributes(G, values=dict(zip(G.edges(), weights_i_)), name='weight')
             path = nx.dijkstra_path(G, source=src_, target=trg_, weight='weight')
             pathes.append(path)
@@ -2020,7 +2024,7 @@ def calc_gene_atlas(
     gm = sklearn.mixture.GaussianMixture(n_components=n_clusters,random_state=0).fit(data_)
     clusters_tmp_ = gm.predict(data_)
     pc1_ = sklearn.decomposition.PCA(n_components=1).fit_transform(data_)[:,0]
-    pc1_ = np.sign(np.dot(pc1_,gene_dynamics_all_umap_[:,0]))*pc1_
+    pc1_ = np.sign(pc1_ @ gene_dynamics_all_umap_[:,0])*pc1_
     pc1_order_ = np.argsort([np.mean(pc1_[clusters_tmp_==i]) for i in range(n_clusters)])
     dict_sort_ = dict(zip(pc1_order_,np.unique(clusters_tmp_)))
     clusters_ = np.array([dict_sort_[c] for c in clusters_tmp_])
@@ -2357,12 +2361,12 @@ def key_gene_dynamics(
     vlines = [0,0.2,0.4,0.6,0.8,1]
     sign_dict_ = {'1':'+','-1':'-'}
     out_pd_ = pd.DataFrame(index=(np.arange(n_genes)+1),columns=pd.MultiIndex.from_product([list(columns_),[]]))
+    gene_dynamics_ = adata.uns[gene_dynamics_key]
     for i in range(len(target_clusters)):
         for j in range(i+1,len(target_clusters)):
             
             name_i_ = source_cluster + '_' + target_clusters[i]
             name_j_ = source_cluster + '_' + target_clusters[j]
-            gene_dynamics_ = adata.uns[gene_dynamics_key]
 
             max_i_,max_j_ = np.max(gene_dynamics_[name_i_],axis=0),np.max(gene_dynamics_[name_j_],axis=0)
             idx_max_ = (max_i_ > threshold_min) & (max_j_ > threshold_min)
