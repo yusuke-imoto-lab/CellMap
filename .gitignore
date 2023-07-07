@@ -52,6 +52,7 @@ figures/cache
 figures/.ipynb_checkpoints
 figures/old
 figures/materials
+figures/CellMap_Overview.ai
 
 # Others
 .vscode
