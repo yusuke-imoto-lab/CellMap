@@ -50,7 +50,8 @@ tutorial/.ipynb_checkpoints
 figures/data/*
 figures/cache
 figures/.ipynb_checkpoints
-figures/materials/*
+figures/old
+figures/materials
 
 # Others
 .vscode

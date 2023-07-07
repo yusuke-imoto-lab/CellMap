@@ -2430,7 +2430,7 @@ def DEG_dynamics(
     bifurcation_diagram_key="bifurcation_diagram",
     target_genes=[],
     n_div=100,
-    figsize=(12, 8.57),
+    figsize=(14, 10),
     fontsize_label=14,
     fontsize_text=12,
     fontsize_nDEG=18,
@@ -2780,7 +2780,7 @@ def DEG_dynamics(
                 frames=n_div + 1,
                 repeat=False,
             )
-            if show = True:
+            if show == True:
                 IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
             if save:
                 filename = (
@@ -2822,6 +2822,7 @@ def DEG_dynamics_clusters(
     bifurcation_diagram_key="bifurcation_diagram",
     target_genes=[],
     n_div=100,
+    figsize=(14, 10),
     fontsize_label=14,
     fontsize_text=12,
     fontsize_nDEG=18,
@@ -3155,8 +3156,7 @@ def DEG_dynamics_clusters(
         for j in range(i + 1, len(target_clusters)):
             name_i_ = source_cluster + "_" + target_clusters[i]
             name_j_ = source_cluster + "_" + target_clusters[j]
-            # fig,ax = plt.subplots(1,2,figsize=(14,8),gridspec_kw={'width_ratios': [4,3]},tight_layout=True)
-            fig = plt.figure(figsize=(14, 10), tight_layout=True)
+            fig = plt.figure(figsize=figsize, tight_layout=True)
             grid = plt.GridSpec(10, 14)
             ax1 = fig.add_subplot(grid[0:2, 0:12])
             ax2 = fig.add_subplot(grid[2:10, 0:8])
@@ -3203,7 +3203,7 @@ def DEG_dynamics_clusters(
                         save_type = "png"
                     print("\nSaving gif animation as %s" % filename)
                     for t in range(n_div + 1):
-                        fig = plt.figure(figsize=(14, 10), tight_layout=True)
+                        fig = plt.figure(figsize=figsize, tight_layout=True)
                         grid = plt.GridSpec(10, 14)
                         ax1 = fig.add_subplot(grid[0:2, 0:12])
                         ax2 = fig.add_subplot(grid[2:10, 0:8])
