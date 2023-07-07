@@ -2011,7 +2011,7 @@ def view_trajectory(
     figsize=(10, 8),
     save=False,
     save_dir=None,
-    save_filename="trajectory",
+    save_filename="Trajectory",
 ):
     kwargs_arg = _check_arguments(adata, verbose=True, basis=basis)
     basis = kwargs_arg["basis"]
@@ -2338,7 +2338,7 @@ def gene_dynamics_plot(
     fontsize_legend=12,
     save=False,
     save_dir=None,
-    save_filename="gene_dynamics_plot",
+    save_filename="Gene_dynamics",
 ):
 
     if gene_dynamics_key not in adata.uns.keys():
@@ -3275,7 +3275,7 @@ def bifurcation_diagram(
     PC=1,
     save=False,
     save_dir=None,
-    save_filename="bifurcation_diagram",
+    save_filename="Bifurcation_diagram",
 ):
     if gene_dynamics_key not in adata.uns.keys():
         calc_gene_dynamics(
@@ -3473,7 +3473,7 @@ def gene_atlas(
     pt_size=5,
     save=False,
     save_dir=None,
-    save_filename="gene_atlas",
+    save_filename="Gene_atlas",
     save_type="html",
 ):
     if gene_atlas_key not in adata.uns.keys():
@@ -3783,7 +3783,7 @@ def key_gene_dynamics(
     fontsize_label=10,
     save=False,
     save_dir=None,
-    save_filename="key_gene_dynamics",
+    save_filename="Key_gene_dynamics",
 ):
     if gene_dynamics_key not in adata.uns.keys():
         calc_gene_dynamics(
@@ -3983,6 +3983,9 @@ def view_GRN(
     grn_key="GRN",
     genes=None,
     n_genes=20,
+    save=False,
+    save_dir=None,
+    save_filename="GRN",
 ):
     if genes == None:
         data_exp = _set_expression_data(adata, exp_key)
@@ -4014,3 +4017,10 @@ def view_GRN(
         ax.set_title(name_i_)
         ax.set_xlabel("Target")
         ax.set_ylabel("Source")
+        if save:
+            filename = (
+                "%s_%s" % (save_filename,name_i_)
+                if save_dir == None
+                else "%s/%s" % (save_dir, save_filename)
+            )
+            fig.savefig(filename + ".png", bbox_inches="tight")
