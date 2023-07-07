@@ -16,13 +16,11 @@ import scipy
 import scipy.sparse
 import scipy.linalg
 import scvelo as scv
+import seaborn as sns
 import sklearn.preprocessing
 import sklearn.mixture
 import sklearn.neighbors
 import sklearn.linear_model
-
-# from sklearn.linear_model import LinearRegression
-# from sklearn.preprocessing import PolynomialFeatures
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
@@ -1435,9 +1433,10 @@ def view_3D(
     width=750,
     height=500,
     annote_fontsize=10,
+    scene_aspectratio=dict(x=1.0, y=1.0, z=0.5),
     save=False,
     filename="CellMap_view_3D",
-    camera=dict(eye=dict(x=1.2, y=-1.2, z=1.0)),
+    camera=dict(eye=dict(x=1.2, y=-1.2, z=0.8)),
     **kwargs,
 ):
     kwargs_arg = _check_arguments(adata, basis=basis, potential_key=potential_key)
@@ -1562,7 +1561,7 @@ def view_3D(
                 zaxis=dict(backgroundcolor=bgcolor, gridcolor=gridcolor),
             ),
             meta=dict(),
-            scene_aspectratio=dict(x=1.0, y=1.0, z=0.5),
+            scene_aspectratio=scene_aspectratio,
         )
         data = [surf]
         if show_cells:
@@ -2431,7 +2430,7 @@ def DEG_dynamics(
     bifurcation_diagram_key="bifurcation_diagram",
     target_genes=[],
     n_div=100,
-    figsize=(12, 8),
+    figsize=(12, 8.57),
     fontsize_label=14,
     fontsize_text=12,
     fontsize_nDEG=18,
@@ -2441,6 +2440,7 @@ def DEG_dynamics(
     max_num_annotations=10,
     max_num_legend=40,
     interval=200,
+    show=True,
     save=False,
     save_dir=None,
     save_filename="DEG_dynamics",
@@ -2468,7 +2468,7 @@ def DEG_dynamics(
 
     def update(t, name_i_, name_j_, max_val_, lim, i, j, k):
         print(
-            "\rcomputing %s vs %s (%d/%d) %d/%d"
+            "\r...computing %s vs %s (%d/%d) %d/%d"
             % (target_clusters[i], target_clusters[j], k, n_plot_, t + 1, n_div + 1),
             end="",
         )
@@ -2778,8 +2778,10 @@ def DEG_dynamics(
                     k,
                 ),
                 frames=n_div + 1,
+                repeat=False,
             )
-            IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
+            if show = True:
+                IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
             if save:
                 filename = (
                     "%s_%s_%s" % (save_filename, target_clusters[i], target_clusters[j])
@@ -3178,6 +3180,7 @@ def DEG_dynamics_clusters(
                     k,
                 ),
                 frames=n_div + 1,
+                repeat=False,
             )
             IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
             plt.close()
