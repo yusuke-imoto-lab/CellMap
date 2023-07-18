@@ -18,6 +18,7 @@ scanpy = ">=1.9.3"
 scikit-learn = ">=0.24"
 scipy = ">=1.8.1"
 scvelo = ">=0.2.5"
+nbformat = ">=4.2.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

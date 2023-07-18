@@ -16,7 +16,7 @@ setup(
 
     license='MIT', # ライセンス
 
-    install_requires=['scipy', 'scikit-learn', 'scanpy'], # pip installする際に同時にインストールされるパッケージ名をリスト形式で指定
+    install_requires=['scipy', 'scikit-learn', 'scanpy', 'nbformat'], # pip installする際に同時にインストールされるパッケージ名をリスト形式で指定
 
     author='Yusuke Imoto', # パッケージ作者の名前
     author_email='imoto.yusuke.4e@kyoto-u.ac.jp', # パッケージ作者の連絡先メールアドレス
