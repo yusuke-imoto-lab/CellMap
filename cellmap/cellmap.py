@@ -677,8 +677,8 @@ def Hodge_decomposition_genes(
 
     exp_2d_key_ = "X_%s" % basis
     vel_2d_key_ = "%s_%s" % (vkey, basis)
-    pot_vkey_ = "%s_%s" % (potential_vkey, basis)
-    rot_vkey_ = "%s_%s" % (rotation_vkey, basis)
+    pot_vkey_ = "%s_%s_%s" % (potential_key, vkey, basis)
+    rot_vkey_ = "%s_%s_%s" % (rotation_key, vkey, basis)
 
     if exp_key == None:
         if scipy.sparse.issparse(adata.X):
@@ -997,8 +997,8 @@ def view_stream(
     adata,
     basis="umap",
     vkey="velocity",
-    potential_vkey="potential_velocity",
-    rotation_vkey="rotation_velocity",
+    potential_key="potential",
+    rotation_key="rotation",
     cluster_key="clusters",
     figsize=(24, 6),
     density=2,
@@ -1011,6 +1011,8 @@ def view_stream(
     basis = kwargs_arg["basis"]
     basis_key = "X_%s" % basis
     data_pos = adata.obsm[basis_key]
+    pot_vkey_ = "%s_%s" % (potential_key, vkey)
+    rot_vkey_ = "%s_%s" % (rotation_key, vkey)
 
     fig, ax = plt.subplots(1, 3, figsize=figsize, tight_layout=True,facecolor="w")
     scv.pl.velocity_embedding_stream(
@@ -1033,7 +1035,7 @@ def view_stream(
     scv.pl.velocity_embedding_stream(
         adata,
         basis=basis,
-        vkey=potential_vkey,
+        vkey=pot_vkey_,
         title="Potential flow",
         ax=ax[1],
         color=cluster_key,
@@ -1050,7 +1052,7 @@ def view_stream(
     scv.pl.velocity_embedding_stream(
         adata,
         basis=basis,
-        vkey=rotation_vkey,
+        vkey=rot_vkey_,
         title="Rotational flow",
         ax=ax[2],
         color=cluster_key,
@@ -2221,13 +2223,6 @@ def calc_gene_dynamics(
     n_div=100,
     degree=10,
 ):
-    # if exp_key == None:
-    #     if scipy.sparse.issparse(adata.X):
-    #         data_exp = adata.X.toarray()
-    #     else:
-    #         data_exp = adata.X
-    # else:
-    #     data_exp = adata.layers[exp_key]
     data_exp = _set_expression_data(adata, exp_key)
     
     path = adata.uns[path_key]
