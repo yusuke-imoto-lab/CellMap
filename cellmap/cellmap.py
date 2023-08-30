@@ -435,20 +435,6 @@ def Hodge_decomposition(
     rot_vor_key_ = "%s_%s_%s" % (rotation_key, vorticity_key, basis)
     rot_sl_key_ = "%s_%s_%s" % (rotation_key, streamfunc_key, basis)
 
-    # if exp_key == None:
-    #     if scipy.sparse.issparse(adata.X):
-    #         exp_HD = adata.X.toarray()
-    #     else:
-    #         exp_HD = adata.X
-    # elif exp_key in adata.obsm.keys():
-    #     exp_HD = adata.obsm[exp_key]
-    # else:
-    #     exp_HD = adata.layers[exp_key]
-    exp_HD = _set_expression_data(adata, exp_key)
-
-    vel_HD = adata.obsm[vkey] if vkey in adata.obsm.keys() else adata.layers[vkey]
-    if logscale_vel:
-        vel_HD = (adata.obs["n_counts"].values * vel_HD.T).T / np.exp(exp_HD)
     exp_LD = (
         adata.obsm[exp_2d_key_][:, :2]
         if exp_2d_key_ in adata.obsm.keys()
@@ -459,6 +445,8 @@ def Hodge_decomposition(
         if vel_2d_key_ in adata.obsm.keys()
         else adata.layers[vel_2d_key_][:, :2]
     )
+
+    exp_HD = _set_expression_data(adata, exp_key)
 
     ## Compute graph and edge velocities
     n_node_ = exp_HD.shape[0]
@@ -475,8 +463,8 @@ def Hodge_decomposition(
         knn = sklearn.neighbors.NearestNeighbors(
             n_neighbors=n_neighbors + 1, algorithm="kd_tree"
         )
-        knn.fit(exp_LD)
-        distances, indices = knn.kneighbors(exp_LD)
+        knn.fit(exp_HD)
+        distances, indices = knn.kneighbors(exp_HD)
         distances, indices = distances[:, 1:], indices[:, 1:]
         source = np.ravel(
             np.repeat(np.arange(exp_HD.shape[0]).reshape((-1, 1)), n_neighbors, axis=1)
@@ -484,6 +472,12 @@ def Hodge_decomposition(
         target = np.ravel(indices)
 
     if HD_rate > 0:
+        vel_HD = adata.obsm[vkey] if vkey in adata.obsm.keys() else adata.layers[vkey]
+        if logscale_vel:
+            if "n_counts" in adata.obs.keys():
+                vel_HD = (adata.obs["n_counts"].values * vel_HD.T).T / np.exp(exp_HD)
+            else:
+                vel_HD = (np.sum(exp_HD,axis=1) * vel_HD.T).T / np.exp(exp_HD)
         edge_vel_HD = edge_velocity(exp_HD, vel_HD, source, target)
     else:
         edge_vel_HD = 0
@@ -2006,7 +2000,7 @@ def view_trajectory(
     streamfunc_key="streamfunc",
     graph_method="Delauney",
     path_key="path",
-    n_neighbors=10,
+    n_neighbors=30,
     contribution_rate_pca=0.95,
     cutedge_vol=None,
     cutedge_length=None,
