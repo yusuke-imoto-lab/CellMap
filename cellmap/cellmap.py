@@ -393,7 +393,7 @@ def Hodge_decomposition(
     edge_vel_key="edge_velocity",
     graph_method="knn",  #'Delauney',
     HD_rate=0.0,
-    n_neighbors=10,
+    n_neighbors=15,
     cutedge_vol=None,
     cutedge_length=None,
     cut_std=None,
@@ -463,11 +463,11 @@ def Hodge_decomposition(
         knn = sklearn.neighbors.NearestNeighbors(
             n_neighbors=n_neighbors + 1, algorithm="kd_tree"
         )
-        knn.fit(exp_HD)
-        distances, indices = knn.kneighbors(exp_HD)
+        knn.fit(exp_LD)
+        distances, indices = knn.kneighbors(exp_LD)
         distances, indices = distances[:, 1:], indices[:, 1:]
         source = np.ravel(
-            np.repeat(np.arange(exp_HD.shape[0]).reshape((-1, 1)), n_neighbors, axis=1)
+            np.repeat(np.arange(exp_LD.shape[0]).reshape((-1, 1)), n_neighbors, axis=1)
         )
         target = np.ravel(indices)
 
@@ -716,7 +716,7 @@ def Hodge_decomposition_genes(
         distances, indices = knn.kneighbors(exp_LD)
         distances, indices = distances[:, 1:], indices[:, 1:]
         source = np.ravel(
-            np.repeat(np.arange(exp_HD.shape[0]).reshape((-1, 1)), n_neighbors, axis=1)
+            np.repeat(np.arange(exp_LD.shape[0]).reshape((-1, 1)), n_neighbors, axis=1)
         )
         target = np.ravel(indices)
 
@@ -1026,40 +1026,57 @@ def view_stream(
         linewidth=2,
         **kwargs,
     )
-    scv.pl.velocity_embedding_stream(
-        adata,
-        basis=basis,
-        vkey=pot_vkey_,
-        title="Potential flow",
-        ax=ax[1],
-        color=cluster_key,
-        show=False,
-        density=density,
-        alpha=alpha,
-        fontsize=fontsize,
-        legend_fontsize=0,
-        legend_loc=None,
-        arrow_size=2,
-        linewidth=2,
-        **kwargs,
-    )
-    scv.pl.velocity_embedding_stream(
-        adata,
-        basis=basis,
-        vkey=rot_vkey_,
-        title="Rotational flow",
-        ax=ax[2],
-        color=cluster_key,
-        show=False,
-        density=density,
-        alpha=alpha,
-        fontsize=fontsize,
-        legend_fontsize=0,
-        legend_loc=None,
-        arrow_size=2,
-        linewidth=2,
-        **kwargs,
-    )
+    # scv.pl.velocity_embedding_stream(
+    #     adata,
+    #     basis=basis,
+    #     vkey=vkey,
+    #     title="RNA velocity",
+    #     ax=ax[0],
+    #     color=cluster_key,
+    #     show=False,
+    #     density=density,
+    #     alpha=alpha,
+    #     fontsize=fontsize,
+    #     legend_fontsize=0,
+    #     legend_loc=None,
+    #     arrow_size=2,
+    #     linewidth=2,
+    #     **kwargs,
+    # )
+    # scv.pl.velocity_embedding_stream(
+    #     adata,
+    #     basis=basis,
+    #     vkey=pot_vkey_,
+    #     title="Potential flow",
+    #     ax=ax[1],
+    #     color=cluster_key,
+    #     show=False,
+    #     density=density,
+    #     alpha=alpha,
+    #     fontsize=fontsize,
+    #     legend_fontsize=0,
+    #     legend_loc=None,
+    #     arrow_size=2,
+    #     linewidth=2,
+    #     **kwargs,
+    # )
+    # scv.pl.velocity_embedding_stream(
+    #     adata,
+    #     basis=basis,
+    #     vkey=rot_vkey_,
+    #     title="Rotational flow",
+    #     ax=ax[2],
+    #     color=cluster_key,
+    #     show=False,
+    #     density=density,
+    #     alpha=alpha,
+    #     fontsize=fontsize,
+    #     legend_fontsize=0,
+    #     legend_loc=None,
+    #     arrow_size=2,
+    #     linewidth=2,
+    #     **kwargs,
+    # )
     if cluster_key != None:
         cluster = adata.obs[cluster_key]
         for i in range(3):
@@ -2026,12 +2043,6 @@ def view_trajectory(
 
     ## Compute graph and edge velocities
     if graph_method == "Delauney":
-        tri_ = create_graph(
-            data_pos,
-            cutedge_vol=cutedge_vol,
-            cutedge_length=cutedge_length,
-            return_type="triangles",
-        )[0]
         source, target = create_graph(
             data_pos,
             cutedge_vol=cutedge_vol,
@@ -2072,6 +2083,12 @@ def view_trajectory(
     dis_mean = np.mean(np.linalg.norm(data_pos[source] - data_pos[target], axis=1))
     cmap_ = plt.get_cmap("tab10")
     fig, ax = plt.subplots(figsize=figsize)
+    tri_ = create_graph(
+        data_pos,
+        cutedge_vol=cutedge_vol,
+        cutedge_length=cutedge_length,
+        return_type="triangles",
+    )[0]
     ax.triplot(tri_, color="gray", zorder=0, alpha=0.2, lw=1)
     clusters_ = adata.obs[cluster_key]
     idx_ = clusters_ == source_cluster
