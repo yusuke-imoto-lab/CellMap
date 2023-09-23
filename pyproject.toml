@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "CellMap"
-version = "1.0.2"
+version = "1.0.3"
 description = "CellMap - RNA landscape inference method"
 authors = ["Yusuke Imoto"]
 readme = "README.md"

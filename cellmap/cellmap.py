@@ -307,6 +307,7 @@ def _set_expression_data(adata, exp_key):
             'The key "%s" was not found in adata.obsm.obsm. Please modify the argument "exp_key".'
             % exp_key
         )
+        logger = logging.getLogger("argument checking")
         logger.exception(err_mssg)
         raise KeyError(err_mssg)
 
