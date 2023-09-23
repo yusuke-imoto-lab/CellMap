@@ -1,5 +1,5 @@
-# name: Deploy
-# on: [push]
+name: Deploy
+on: [push]
 # jobs:
 #   pypi:
 #     runs-on: ubuntu-latest
