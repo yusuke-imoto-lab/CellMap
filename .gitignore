@@ -412,3 +412,6 @@ figures/materials/Fig_hippo_02_Potential_flow.png
 figures/materials/Fig_endo_08_Potential3D.png
 tutorial/CellMap_tutorial_pancreas.csv
 .github/workflows/main.yml
+cellmap/Release_check.ipynb
+figures/Figure_endocrine.ipynb
+figures/Figure_hippocampus.ipynb
