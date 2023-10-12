@@ -374,6 +374,7 @@ def edge_velocity(
     Dis[Dis == 0] = 1
     # V1_p,V2_p = V1*(X2-X1),V2*(X2-X1)
     edge_vel = np.sum(0.5 * (V1 + V2) * (X2 - X1), axis=1) / Dis / np.sum(idx_vel)
+    edge_vel[edge_vel<0]=0 
     if normalization:
         edge_vel_norm = np.linalg.norm(edge_vel)
         if edge_vel_norm > 0:
@@ -555,6 +556,7 @@ def Hodge_decomposition(
     div_[div_ == 0] = 1
     vorticity_ = div_mat @ edge_velocity(
         exp_LD,
+        # np.vstack((vel_LD[:, 1] / div_, -vel_LD[:, 0] / div_)).T,
         np.vstack((vel_LD[:, 1] / div_, -vel_LD[:, 0] / div_)).T,
         source,
         target,
@@ -1027,57 +1029,57 @@ def view_stream(
         linewidth=2,
         **kwargs,
     )
-    # scv.pl.velocity_embedding_stream(
-    #     adata,
-    #     basis=basis,
-    #     vkey=vkey,
-    #     title="RNA velocity",
-    #     ax=ax[0],
-    #     color=cluster_key,
-    #     show=False,
-    #     density=density,
-    #     alpha=alpha,
-    #     fontsize=fontsize,
-    #     legend_fontsize=0,
-    #     legend_loc=None,
-    #     arrow_size=2,
-    #     linewidth=2,
-    #     **kwargs,
-    # )
-    # scv.pl.velocity_embedding_stream(
-    #     adata,
-    #     basis=basis,
-    #     vkey=pot_vkey_,
-    #     title="Potential flow",
-    #     ax=ax[1],
-    #     color=cluster_key,
-    #     show=False,
-    #     density=density,
-    #     alpha=alpha,
-    #     fontsize=fontsize,
-    #     legend_fontsize=0,
-    #     legend_loc=None,
-    #     arrow_size=2,
-    #     linewidth=2,
-    #     **kwargs,
-    # )
-    # scv.pl.velocity_embedding_stream(
-    #     adata,
-    #     basis=basis,
-    #     vkey=rot_vkey_,
-    #     title="Rotational flow",
-    #     ax=ax[2],
-    #     color=cluster_key,
-    #     show=False,
-    #     density=density,
-    #     alpha=alpha,
-    #     fontsize=fontsize,
-    #     legend_fontsize=0,
-    #     legend_loc=None,
-    #     arrow_size=2,
-    #     linewidth=2,
-    #     **kwargs,
-    # )
+    scv.pl.velocity_embedding_stream(
+        adata,
+        basis=basis,
+        vkey=vkey,
+        title="RNA velocity",
+        ax=ax[0],
+        color=cluster_key,
+        show=False,
+        density=density,
+        alpha=alpha,
+        fontsize=fontsize,
+        legend_fontsize=0,
+        legend_loc=None,
+        arrow_size=2,
+        linewidth=2,
+        **kwargs,
+    )
+    scv.pl.velocity_embedding_stream(
+        adata,
+        basis=basis,
+        vkey=pot_vkey_,
+        title="Potential flow",
+        ax=ax[1],
+        color=cluster_key,
+        show=False,
+        density=density,
+        alpha=alpha,
+        fontsize=fontsize,
+        legend_fontsize=0,
+        legend_loc=None,
+        arrow_size=2,
+        linewidth=2,
+        **kwargs,
+    )
+    scv.pl.velocity_embedding_stream(
+        adata,
+        basis=basis,
+        vkey=rot_vkey_,
+        title="Rotational flow",
+        ax=ax[2],
+        color=cluster_key,
+        show=False,
+        density=density,
+        alpha=alpha,
+        fontsize=fontsize,
+        legend_fontsize=0,
+        legend_loc=None,
+        arrow_size=2,
+        linewidth=2,
+        **kwargs,
+    )
     if cluster_key != None:
         cluster = adata.obs[cluster_key]
         for i in range(3):
@@ -2011,7 +2013,7 @@ def view_trajectory(
     source_cluster,
     target_clusters,
     n_cells=50,
-    weight_rate=0.5,
+    weight_rate=0.9,
     basis="umap",
     potential_key="potential",
     cluster_key="clusters",
