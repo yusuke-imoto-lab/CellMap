@@ -2226,6 +2226,103 @@ def view_trajectory(
         )
         fig.savefig(filename + ".png", bbox_inches="tight")
 
+        filename = (
+            "%s_clusters" % (save_filename)
+            if save_dir == None
+            else "%s/%s" % (save_dir, save_filename)
+        )
+        fig.savefig(filename + ".png", bbox_inches="tight")
+
+def dynamical_clustering(
+    adata,
+    target_clusters,
+    TO_prob = 1e-10,
+    basis="umap",
+    cluster_key="clusters",
+    streamfunc_key="streamfunc",
+    figsize=(10, 8),
+    fs_label = 16,
+    fs_lagened = 16,
+    save=False,
+    save_dir=None,
+    save_filename="Dynamical_clustering",
+):
+    
+    basis_key = "X_%s" % basis
+    sl_key_ = "%s_%s" % (streamfunc_key, basis)
+    
+    n_clusters_ = len(target_clusters)
+    Gaussian_stats = {}
+    Gaussian_pdf = np.empty([n_clusters_,adata.shape[0]],dtype=float)
+    Gaussian_weight = np.empty(n_clusters_,dtype=float)
+    
+    for i_trg_ in range(n_clusters_):
+        Gaussian_weight[i_trg_] = sum(adata.obs[cluster_key] == target_clusters[i_trg_])
+    Gaussian_weight = Gaussian_weight/np.sum(Gaussian_weight)
+
+    for i_trg_ in range(n_clusters_):
+        cluster_ = target_clusters[i_trg_]
+        idx_ = adata.obs[cluster_key] == cluster_
+        Gaussian_stats[cluster_] = {}
+        Gaussian_stats["mean"] = np.mean(adata.obs[sl_key_][idx_])
+        Gaussian_stats["std"] = np.std(adata.obs[sl_key_][idx_])
+        Gaussian_pdf[i_trg_] = Gaussian_weight[i_trg_]*scipy.stats.norm.pdf(adata.obs[sl_key_], Gaussian_stats["mean"], Gaussian_stats["std"])
+    
+    adata.uns["Dynamical_clustering"] = {"Gaussian_stats":Gaussian_stats,"Gaussian_pdf":Gaussian_pdf}
+    
+    idx_color_ = np.argmax(Gaussian_pdf,axis=0)
+    cmap = plt.get_cmap("tab10")
+    idx_color_[np.max(Gaussian_pdf,axis=0)<TO_prob] = -1
+    
+    pmin_,pmax_ = np.max(adata.obs[sl_key_]),np.min(adata.obs[sl_key_])
+    for i_trg_ in range(n_clusters_):
+        pmin_ = min(pmin_,np.min(adata.obs[sl_key_][adata.obs[cluster_key] == target_clusters[i_trg_]]))
+        pmax_ = max(pmax_,np.max(adata.obs[sl_key_][adata.obs[cluster_key] == target_clusters[i_trg_]]))
+    bins = np.linspace(pmin_,pmax_,50)
+    x_range = np.linspace(pmin_-0.2*(pmax_-pmin_),pmax_+0.2*(pmax_-pmin_),100)
+    fig = plt.figure(figsize=(8,4))
+    ax1 = fig.add_subplot(111)
+    ax2 = ax1.twinx()
+    for i_trg_ in range(n_clusters_):
+        cluster_ = target_clusters[i_trg_]
+        idx_ = adata.obs[cluster_key] == cluster_
+        ax1.hist(adata.obs[sl_key_][idx_],bins=bins,lw=1,edgecolor="k",label=target_clusters[i_trg_])
+        pdf_values = Gaussian_weight[i_trg_]*scipy.stats.norm.pdf(x_range, np.mean(adata.obs[sl_key_][idx_]), np.std(adata.obs[sl_key_][idx_]))
+        ax2.plot(x_range, pdf_values,lw=5,zorder=0,color="w")
+        ax2.plot(x_range, pdf_values,lw=3,zorder=10)
+    ax1.set_ylabel('Freaquency',fontsize=fs_label)
+    ax1.set_xlabel('Orthogonal potential',fontsize=fs_label)
+    ax2.set_ylabel('Probability',fontsize=fs_label)
+    ax2.set_ylim([0,ax2.get_ylim()[1]])
+    ax1.legend(bbox_to_anchor=(1.1, 1), loc='upper left',frameon=False,fontsize=fs_lagened)
+    if save:
+        filename = (
+            "%s_Gaussian" % (save_filename)
+            if save_dir == None
+            else "%s/%s" % (save_dir, save_filename)
+        )
+        fig.savefig(filename + ".png", bbox_inches="tight")
+    
+    fig,ax = plt.subplots(figsize=figsize)
+    ax.scatter(adata.obsm[basis_key][:,0],adata.obsm[basis_key][:,1],s=5,c="gray",alpha=0.1)
+    for i in range(max(idx_color_)+1):
+        idx_ = idx_color_ == i
+        ax.scatter(adata.obsm[basis_key][idx_,0],adata.obsm[basis_key][idx_,1],s=10,c=cmap(i))
+    for i_trg_ in range(n_clusters_):
+        cluster_ = target_clusters[i_trg_]
+        idx_ = adata.obs[cluster_key] == cluster_
+        ax.scatter(adata.obsm[basis_key][idx_,0],adata.obsm[basis_key][idx_,1],s=50,c=cmap(i_trg_),edgecolors="k")
+        txt = ax.text(np.mean(adata.obsm[basis_key][idx_,0]),np.mean(adata.obsm[basis_key][idx_,1]),target_clusters[i_trg_],fontsize=20,ha="center", va="center",fontweight="bold", zorder=20,)
+        txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground="w")])
+    ax.axis("off")
+    if save:
+        filename = (
+            "%s_clusters" % (save_filename)
+            if save_dir == None
+            else "%s/%s" % (save_dir, save_filename)
+        )
+        fig.savefig(filename + ".png", bbox_inches="tight")
+
 
 def calc_gene_dynamics(
     adata,
