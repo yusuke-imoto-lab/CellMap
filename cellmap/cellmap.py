@@ -2374,6 +2374,7 @@ def gene_dynamics_plot(
     fontsize_title=16,
     fontsize_label=14,
     fontsize_legend=12,
+    legend = True,
     save=False,
     save_dir=None,
     save_filename="Gene_dynamics",
@@ -2425,14 +2426,15 @@ def gene_dynamics_plot(
                 y_data_all = np.append(y_data_all, y_data)
             y_top_ = np.percentile(y_data_all, 99)
             plt.ylim([-0.05 * y_top_, y_top_])
-            plt.legend(
-                bbox_to_anchor=(1.05, 0.5),
-                loc="center left",
-                borderaxespad=0,
-                title="Target",
-                fontsize=fontsize_legend,
-                title_fontsize=fontsize_legend,
-            )
+            if legend:
+                plt.legend(
+                    bbox_to_anchor=(1.05, 0.5),
+                    loc="center left",
+                    borderaxespad=0,
+                    title="Target",
+                    fontsize=fontsize_legend,
+                    title_fontsize=fontsize_legend,
+                )
             plt.xticks(
                 [0, 0.25, 0.5, 0.75, 1],
                 [
