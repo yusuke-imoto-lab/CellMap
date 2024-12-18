@@ -3990,14 +3990,12 @@ def landscape(
     x2 = y_
     X1, X2 = np.meshgrid(x1, x2)
 
-    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
-    basecolor = "chocolate"#matplotlib.cm.gist_earth(0.1)
     basecolor = matplotlib.cm.Oranges(0.99)
     basecolor_alpha = 0.9
 
     ls = matplotlib.colors.LightSource(270, 45)
     rgb = ls.shade(c_plot.T, cmap=matplotlib.cm.gist_earth, vert_exag=0.1, blend_mode='soft',vmin=-0.05, vmax=1.1)
-    surf = ax.plot_surface(X1, X2, z_plot.T, facecolors=rgb, linewidth=0, zorder=0, alpha=1, edgecolor='none',rstride=1, cstride=1, antialiased=False, shade=False)
+    ax.plot_surface(X1, X2, z_plot.T, facecolors=rgb, linewidth=0, zorder=0, alpha=1, edgecolor='none',rstride=1, cstride=1, antialiased=False, shade=False)
     px_,py_,pz_ = np.repeat(1,n_grid),y_,z_plot[-1]
     verts = [[px_[i], py_[i], pz_[i]] for i in range(len(px_))] + [[px_[i], py_[i], 0] for i in reversed(range(len(px_)))]
     poly = mpl_toolkits.mplot3d.art3d.Poly3DCollection([verts], alpha=basecolor_alpha, facecolors=basecolor, edgecolors='none',zorder=0)
@@ -4027,12 +4025,11 @@ def landscape(
             ax.plot(np.linspace(0, 1, n_div-merge_step), y_, z_, lw=4, color="w", zorder=10, alpha=0.8)
             ax.plot(np.linspace(0, 1, n_div-merge_step), y_, z_, lw=2, c=cmap(i), zorder=100)
 
-    text = ax.text(0,np.argmax(z_plot[0])/n_grid,np.max(z_plot[0]),source_cluster,fontsize=fontize_text,va="bottom",ha="center",zorder=100,fontweight="bold")
+    text = ax.text(0,y_[np.argmin(z_plot[0])],np.max(z_plot[0]),source_cluster,fontsize=fontize_text,va="bottom",ha="center",zorder=100,fontweight="bold")
     text.set_path_effects([matplotlib.patheffects.withStroke(linewidth=3, foreground='white')])
     for i in range(len(target_clusters)):
         name_i_ = source_cluster + "_" + target_clusters[i]
         z_ = adata.uns[potential_dynamics_key][pot_key][pot_stat_key][name_i_][-1]*pot_range/pot_.max()-np.max(c_plot[-1])*valley_range/len(target_clusters)
-        # ax.scatter(1.0,adata.uns[bifurcation_diagram_key][name_i_][:,PC-1][-1],adata.uns[potential_dynamics_key][z_key][z_stat_key][name_i_][-1]+np.min(z_plot),s=10,zorder=200)
         text = ax.text(1.00,adata.uns[bifurcation_diagram_key][name_i_][:,PC-1][-1],adata.uns[potential_dynamics_key][pot_key][pot_stat_key][name_i_][-1]+np.min(z_plot),
                 target_clusters[i],fontsize=fontize_text,va="top",ha="center",zorder=100,fontweight="bold",c=cmap(i))
         text.set_path_effects([matplotlib.patheffects.withStroke(linewidth=3, foreground='white')])
