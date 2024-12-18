@@ -3086,7 +3086,10 @@ def DEG_dynamics(
         )
         val_i_ = data_exp_[adata.uns['path_scaled'][name_i_][:,t]]
         val_j_ = data_exp_[adata.uns['path_scaled'][name_j_][:,t]]
-        FC_ = np.nan_to_num(np.log2(np.mean(val_i_,axis=0)/np.mean(val_j_,axis=0)))
+        mean_i_ = np.mean(val_i_,axis=0)
+        mean_j_ = np.mean(val_j_,axis=0)
+        FC_ = np.nan_to_num(np.log2(mean_j_/mean_i_))
+        FC_[(mean_i_<FC_cut) | (mean_j_<FC_cut)] = 0
         Pval_ = np.nan_to_num(-np.log10(scipy.stats.ttest_ind(val_i_, val_j_)[1]))
         
         idx_sig_i_ = np.arange(adata.shape[1])[(Pval_ > np.percentile(Pval_,100-Pval_thd)) & (FC_ < -FC_thd)]
