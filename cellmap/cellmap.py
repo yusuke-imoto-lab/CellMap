@@ -1,4 +1,3 @@
-# from adjustText import adjust_text
 import adjustText
 import anndata
 import IPython.display
@@ -9,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.cm
 import matplotlib.colors
 import matplotlib.animation as anm
-from matplotlib import patheffects as PathEffects
+import mpl_toolkits
 import networkx as nx
 import scanpy
 import scipy
@@ -807,7 +806,7 @@ def view(
                     zorder=20,
                 )
                 txt.set_path_effects(
-                    [PathEffects.withStroke(linewidth=5, foreground="w")]
+                    [matplotlib.patheffects.withStroke(linewidth=5, foreground="w")]
                 )
         else:
             print('There is no cluster key "%s" in adata.obs' % cluster_key)
@@ -897,7 +896,7 @@ def view_cluster(
                 fontweight="bold",
                 zorder=20,
             )
-            txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground="w")])
+            txt.set_path_effects([matplotlib.patheffects.withStroke(linewidth=5, foreground="w")])
     else:
         print('There is no cluster key "%s" in adata.obs' % cluster_key)
     ax.set_title(title, fontsize=18)
@@ -985,7 +984,7 @@ def view_surface(
                     fontweight="bold",
                 )
                 txt.set_path_effects(
-                    [PathEffects.withStroke(linewidth=5, foreground="w")]
+                    [matplotlib.patheffects.withStroke(linewidth=5, foreground="w")]
                 )
                 texts.append(txt)
 
@@ -1095,7 +1094,7 @@ def view_stream(
                     fontweight="bold",
                     zorder=20,
                 )
-                txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground="w")])
+                txt.set_path_effects([matplotlib.patheffects.withStroke(linewidth=5, foreground="w")])
                 texts.append(txt)
 
 
@@ -1185,7 +1184,7 @@ def view_stream_line(
                         zorder=20,
                     )
                     txt.set_path_effects(
-                        [PathEffects.withStroke(linewidth=5, foreground="w")]
+                        [matplotlib.patheffects.withStroke(linewidth=5, foreground="w")]
                     )
         else:
             print('There is no cluster key "%s" in adata.obs' % cluster_key)
@@ -1255,7 +1254,7 @@ def view_quiver(
                 fontweight="bold",
                 zorder=20,
             )
-            txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground="w")])
+            txt.set_path_effects([matplotlib.patheffects.withStroke(linewidth=5, foreground="w")])
     idx_qvr_ = np.random.choice(
         np.arange(adata.shape[0]), int(quiver_rate * adata.shape[0]), replace=False
     )
@@ -1426,7 +1425,7 @@ def view_surface_genes(
                             fontweight="bold",
                         )
                         txt.set_path_effects(
-                            [PathEffects.withStroke(linewidth=5, foreground="w")]
+                            [matplotlib.patheffects.withStroke(linewidth=5, foreground="w")]
                         )
                         texts.append(txt)
 
@@ -1698,7 +1697,7 @@ def view_surface_3D(
                     zorder=1000,
                 )
                 txt.set_path_effects(
-                    [PathEffects.withStroke(linewidth=5, foreground="w")]
+                    [matplotlib.patheffects.withStroke(linewidth=5, foreground="w")]
                 )
                 texts.append(txt)
     ax.view_init(elev=elev, azim=azim)
@@ -1777,7 +1776,7 @@ def view_surface_3D_cluster(
                 fontweight="bold",
                 zorder=1000,
             )
-            txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground="w")])
+            txt.set_path_effects([matplotlib.patheffects.withStroke(linewidth=5, foreground="w")])
         kwargs["cmap"] = cmap_pt
         ax.scatter(
             data_pos[idx, 0],
@@ -1846,13 +1845,6 @@ def write(
     rot_vol_key_ = "%s_%s_%s" % (rotation_key, vorticity_key, basis)
     rot_sl_key_ = "%s_%s_%s" % (rotation_key, streamfunc_key, basis)
 
-    # if exp_key == None:
-    #     if scipy.sparse.issparse(adata.X):
-    #         data_exp = adata.X.toarray()
-    #     else:
-    #         data_exp = adata.X
-    # else:
-    #     data_exp = adata.layers[exp_key]
     data_exp = _set_expression_data(adata, exp_key)
 
     pd_out = pd.DataFrame(
@@ -2217,7 +2209,9 @@ def view_trajectory(
                 alpha=0.3,
             )
     ax.axis("off")
+
     adata.uns[path_key] = path_all
+
     if save:
         filename = (
             "%s" % (save_filename)
@@ -2313,7 +2307,7 @@ def dynamical_clustering(
         idx_ = adata.obs[cluster_key] == cluster_
         ax.scatter(adata.obsm[basis_key][idx_,0],adata.obsm[basis_key][idx_,1],s=50,c=cmap(i_trg_),edgecolors="k")
         txt = ax.text(np.mean(adata.obsm[basis_key][idx_,0]),np.mean(adata.obsm[basis_key][idx_,1]),target_clusters[i_trg_],fontsize=20,ha="center", va="center",fontweight="bold", zorder=20,)
-        txt.set_path_effects([PathEffects.withStroke(linewidth=5, foreground="w")])
+        txt.set_path_effects([matplotlib.patheffects.withStroke(linewidth=5, foreground="w")])
     ax.axis("off")
     if save:
         filename = (
@@ -2323,43 +2317,117 @@ def dynamical_clustering(
         )
         fig.savefig(filename + ".png", bbox_inches="tight")
 
-
-def calc_gene_dynamics(
+def calc_dynamics(
     adata,
     source_cluster,
     target_clusters,
     path_key="path",
+    path_scaled_key="path_scaled",
     exp_key=None,
     gene_dynamics_key="gene_dynamics",
+    potential_dynamics_key = "potential_dynamics",
+    culc_potential_dynamics_keys = ["potential"],
     n_div=100,
     degree=10,
 ):
     data_exp = _set_expression_data(adata, exp_key)
     
     path = adata.uns[path_key]
+    path_scaled = {}
+    for k_ in path.keys():
+        path_scaled[k_] = np.array([np.array(p_)[np.linspace(0, len(p_)-1, n_div+1,dtype=int)] for p_ in adata.uns["path"][k_]])
+    adata.uns[path_scaled_key] = path_scaled
 
-    gene_dynamics_ = {}
-    for i in range(len(path)):
+    gene_dynamics = {"reg":{},"mean":{},"median":{},"std":{},"percentile_75":{},"percentile_25":{}}
+    for i in range(len(path_scaled)):
         name_ = source_cluster + "_" + target_clusters[i]
-        x_data, y_data = np.empty(0, dtype=float), np.empty(
-            [0, adata.shape[1]], dtype=float
-        )
-        for pi in path[name_]:
-            x_data = np.append(x_data, np.linspace(0, 1, len(pi)))
-            y_data = np.vstack((y_data, data_exp[pi]))
+        x_data = np.resize(np.linspace(0, 1, n_div+1),(n_div+1)*path_scaled[name_].shape[0])
+        y_data = data_exp[path_scaled[name_]].reshape(path_scaled[name_].size,data_exp.shape[1])
 
         X = x_data[:, np.newaxis]
+        plot_x = np.linspace(0, 1, n_div+1)
         poly = sklearn.preprocessing.PolynomialFeatures(degree=degree)
-        X_poly = poly.fit_transform(X)
         model = sklearn.linear_model.LinearRegression()
-        model.fit(X_poly, y_data)
-        plot_x = np.linspace(0, 1, n_div + 1)
+        model.fit(poly.fit_transform(X), y_data)
         gd_i_ = model.predict(poly.fit_transform(plot_x[:, np.newaxis]))
+        
         gd_i_[gd_i_ < 0] = 0
-        gene_dynamics_[source_cluster + "_" + target_clusters[i]] = gd_i_
-    adata.uns[gene_dynamics_key] = gene_dynamics_
-    print("Done the computation of gene dynamics")
+        gene_dynamics["reg"][name_] = gd_i_
+        gene_dynamics["mean"][name_] = np.mean(data_exp[path_scaled[name_]],axis=0)
+        gene_dynamics["median"][name_] = np.median(data_exp[path_scaled[name_]],axis=0)
+        gene_dynamics["std"][name_] = np.std(data_exp[path_scaled[name_]],axis=0)
+        gene_dynamics["percentile_75"][name_] = np.percentile(data_exp[path_scaled[name_]],75,axis=0)
+        gene_dynamics["percentile_25"][name_] = np.percentile(data_exp[path_scaled[name_]],25,axis=0)
+    adata.uns[gene_dynamics_key] = gene_dynamics
 
+    potential_dynamics = {}
+    for k_ in culc_potential_dynamics_keys:
+        potential_dynamics[k_] = {"reg":{},"mean":{},"median":{},"std":{},"percentile_75":{},"percentile_25":{}}
+        for i in range(len(path_scaled)):
+            name_ = source_cluster + "_" + target_clusters[i]
+            x_data = np.resize(np.linspace(0, 1, n_div+1),(n_div+1)*path_scaled[name_].shape[0])
+            y_data_all = adata.obs[[k_]].values
+            y_data = y_data_all[path_scaled[name_]].reshape(path_scaled[name_].size,y_data_all.shape[1])
+
+            X = x_data[:, np.newaxis]
+            plot_x = np.linspace(0, 1, n_div+1)
+            poly = sklearn.preprocessing.PolynomialFeatures(degree=degree)
+            model = sklearn.linear_model.LinearRegression()
+            model.fit(poly.fit_transform(X), y_data)
+            gd_i_ = model.predict(poly.fit_transform(plot_x[:, np.newaxis]))
+            
+            gd_i_[gd_i_ < 0] = 0
+            potential_dynamics[k_]["reg"][name_] = gd_i_[:,0]
+            potential_dynamics[k_]["mean"][name_] = np.mean(y_data_all[path_scaled[name_]],axis=0)[:,0]
+            potential_dynamics[k_]["median"][name_] = np.median(y_data_all[path_scaled[name_]],axis=0)[:,0]
+            potential_dynamics[k_]["std"][name_] = np.std(y_data_all[path_scaled[name_]],axis=0)[:,0]
+            potential_dynamics[k_]["percentile_75"][name_] = np.percentile(y_data_all[path_scaled[name_]],75,axis=0)[:,0]
+            potential_dynamics[k_]["percentile_25"][name_] = np.percentile(y_data_all[path_scaled[name_]],25,axis=0)[:,0]
+    adata.uns[potential_dynamics_key] = potential_dynamics
+
+    print("Done the computation of dynamics")
+
+# def calc_dynamics(
+#     adata,
+#     source_cluster,
+#     target_clusters,
+#     path_key="path",
+#     path_scaled_key="path_scaled",
+#     exp_key=None,
+#     gene_dynamics_key="gene_dynamics",
+#     n_div=100,
+#     degree=10,
+# ):
+#     data_exp = _set_expression_data(adata, exp_key)
+    
+#     path = adata.uns[path_key]
+
+#     path_scaled = {}
+#     for k_ in path.keys():
+#         path_scaled[k_] = np.array([np.array(p_)[np.linspace(0, len(p_)-1, n_div,dtype=int)] for p_ in adata.uns["path"][k_]])
+#     adata.uns[path_scaled_key] = path_scaled
+
+#     gene_dynamics_ = {}
+#     for i in range(len(path_scaled)):
+#         name_ = source_cluster + "_" + target_clusters[i]
+#         x_data, y_data = np.empty(0, dtype=float), np.empty(
+#             [0, adata.shape[1]], dtype=float
+#         )
+#         for pi in path_scaled[name_]:
+#             x_data = np.append(x_data, np.linspace(0, 1, len(pi)))
+#             y_data = np.vstack((y_data, data_exp[pi]))
+
+#         X = x_data[:, np.newaxis]
+#         poly = sklearn.preprocessing.PolynomialFeatures(degree=degree)
+#         X_poly = poly.fit_transform(X)
+#         model = sklearn.linear_model.LinearRegression()
+#         model.fit(X_poly, y_data)
+#         plot_x = np.linspace(0, 1, n_div + 1)
+#         gd_i_ = model.predict(poly.fit_transform(plot_x[:, np.newaxis]))
+#         gd_i_[gd_i_ < 0] = 0
+#         gene_dynamics_[source_cluster + "_" + target_clusters[i]] = gd_i_
+#     adata.uns[gene_dynamics_key] = gene_dynamics_
+#     print("Done the computation of gene dynamics")
 
 def gene_dynamics_plot(
     adata,
@@ -2367,9 +2435,15 @@ def gene_dynamics_plot(
     target_clusters,
     genes,
     path_key="path",
+    path_scaled_key="path_scaled",
     exp_key=None,
     gene_dynamics_key="gene_dynamics",
     n_div=100,
+    plot_center = "median",
+    plot_errorbar = "percentile",
+    smoothing = True,
+    smoothing_sigma= 3,
+    errbar_alpha = 0.15,
     figsize=(10, 4),
     fontsize_title=16,
     fontsize_label=14,
@@ -2381,7 +2455,7 @@ def gene_dynamics_plot(
 ):
 
     if gene_dynamics_key not in adata.uns.keys():
-        calc_gene_dynamics(
+        calc_dynamics(
             adata,
             source_cluster,
             target_clusters,
@@ -2391,43 +2465,34 @@ def gene_dynamics_plot(
             n_div=n_div,
         )
 
-    data_exp = _set_expression_data(adata, exp_key)
-    path = adata.uns[path_key]
     cmap_ = plt.get_cmap("tab10")
+
+    x_data = np.linspace(0, 1, n_div+1)
+    y_data = adata.uns[gene_dynamics_key][plot_center]
+    if plot_errorbar == "percentile":
+        err_top = adata.uns[gene_dynamics_key]["percentile_75"]
+        err_bottom = adata.uns[gene_dynamics_key]["percentile_25"]
+    if plot_errorbar == "std":
+        err_top = adata.uns[gene_dynamics_key]["mean"] + adata.uns[gene_dynamics_key]["std"]
+        err_bottom = adata.uns[gene_dynamics_key]["mean"] - adata.uns[gene_dynamics_key]["std"]
 
     for gene in genes:
         if gene in adata.var.index:
-            fig = plt.figure(figsize=figsize)
+            fig,ax = plt.subplots(figsize=figsize)
             y_data_all = []
             for i in range(len(target_clusters)):
                 name_ = source_cluster + "_" + target_clusters[i]
-                x_data, y_data = np.empty(0, dtype=float), np.empty(0, dtype=float)
-                for pi in path[name_]:
-                    y_ = data_exp[:, adata.var.index == gene][pi].T[0]
-                    idx_ = y_ > 0
-                    x_data = np.append(x_data, np.linspace(0, 1, len(pi))[idx_])
-                    y_data = np.append(y_data, y_[idx_])
-                if len(y_data):
-                    plt.scatter(x_data, y_data, color=cmap_(i), alpha=0.05, zorder=0)
-                dynamics_ = adata.uns[gene_dynamics_key][name_][
-                    :, adata.var.index == gene
-                ]
-                plot_x = np.linspace(0, 1, len(dynamics_))
-                dynamics_[dynamics_ < 0] = 0
-                plt.plot(plot_x, dynamics_, color="w", lw=8, zorder=1)
-                plt.plot(
-                    plot_x,
-                    dynamics_,
-                    color=cmap_(i),
-                    lw=5,
-                    label=target_clusters[i],
-                    zorder=2,
-                )
-                y_data_all = np.append(y_data_all, y_data)
-            y_top_ = np.percentile(y_data_all, 99)
-            plt.ylim([-0.05 * y_top_, y_top_])
+                y_,et_,eb_ = y_data[name_][:, adata.var.index == gene][:,0],err_top[name_][:, adata.var.index == gene][:,0],err_bottom[name_][:, adata.var.index == gene][:,0]
+                if smoothing:
+                    y_, et_, eb_ = [scipy.ndimage.gaussian_filter1d(arr, sigma=smoothing_sigma) for arr in (y_, et_, eb_)]
+                ax.plot(x_data,y_, color=cmap_(i),label=target_clusters[i],lw=4,zorder=2)
+                ax.plot(x_data,y_, color="w",lw=6,zorder=1)
+                ax.fill_between(x_data,et_, eb_, color=cmap_(i), alpha=errbar_alpha,zorder=0)
+                y_data_all = np.append(y_data_all, et_)
+            ax.set_xlim(0,1)
+            ax.set_ylim(0,np.max(y_data_all))
             if legend:
-                plt.legend(
+                ax.legend(
                     bbox_to_anchor=(1.05, 0.5),
                     loc="center left",
                     borderaxespad=0,
@@ -2435,7 +2500,7 @@ def gene_dynamics_plot(
                     fontsize=fontsize_legend,
                     title_fontsize=fontsize_legend,
                 )
-            plt.xticks(
+            ax.set_xticks(
                 [0, 0.25, 0.5, 0.75, 1],
                 [
                     "Source (0)\n(%s)" % source_cluster,
@@ -2446,7 +2511,18 @@ def gene_dynamics_plot(
                 ],
                 fontsize=fontsize_label,
             )
-            plt.title(gene, fontsize=fontsize_title)
+            ax.set_xticks(
+                [0, 0.1, 0.2, 0.3, 0.4,0.5,0.6,0.7,0.8,0.9,1],
+                [
+                    "Source (0)\n(%s)" % source_cluster,
+                    "0.1","0.2","0.3","0.4","0.5","0.6","0.7","0.8","0.9",
+                    "Target (1)",
+                ],
+                fontsize=fontsize_label,
+            )
+            ax.set_yticks(ax.get_yticks(),ax.get_yticks(),fontsize=fontsize_label)
+            ax.set_title(gene, fontsize=fontsize_title)
+            ax.grid(ls="--",zorder=-1)
             plt.show()
             if save:
                 filename = (
@@ -2460,6 +2536,498 @@ def gene_dynamics_plot(
             print('Gene "%s" was not found' % gene)
 
 
+
+# def gene_dynamics_plot(
+#     adata,
+#     source_cluster,
+#     target_clusters,
+#     genes,
+#     path_key="path",
+#     exp_key=None,
+#     gene_dynamics_key="gene_dynamics",
+#     n_div=100,
+#     figsize=(10, 4),
+#     fontsize_title=16,
+#     fontsize_label=14,
+#     fontsize_legend=12,
+#     legend = True,
+#     save=False,
+#     save_dir=None,
+#     save_filename="Gene_dynamics",
+# ):
+
+#     if gene_dynamics_key not in adata.uns.keys():
+#         calc_dynamics(
+#             adata,
+#             source_cluster,
+#             target_clusters,
+#             path_key=path_key,
+#             exp_key=exp_key,
+#             gene_dynamics_key=gene_dynamics_key,
+#             n_div=n_div,
+#         )
+
+#     data_exp = _set_expression_data(adata, exp_key)
+#     path = adata.uns[path_key]
+#     cmap_ = plt.get_cmap("tab10")
+
+#     for gene in genes:
+#         if gene in adata.var.index:
+#             fig = plt.figure(figsize=figsize)
+#             y_data_all = []
+#             for i in range(len(target_clusters)):
+#                 name_ = source_cluster + "_" + target_clusters[i]
+#                 x_data, y_data = np.empty(0, dtype=float), np.empty(0, dtype=float)
+#                 for pi in path[name_]:
+#                     y_ = data_exp[:, adata.var.index == gene][pi].T[0]
+#                     idx_ = y_ > 0
+#                     x_data = np.append(x_data, np.linspace(0, 1, len(pi))[idx_])
+#                     y_data = np.append(y_data, y_[idx_])
+#                 if len(y_data):
+#                     plt.scatter(x_data, y_data, color=cmap_(i), alpha=0.05, zorder=0)
+#                 dynamics_ = adata.uns[gene_dynamics_key][name_][
+#                     :, adata.var.index == gene
+#                 ]
+#                 plot_x = np.linspace(0, 1, len(dynamics_))
+#                 dynamics_[dynamics_ < 0] = 0
+#                 plt.plot(plot_x, dynamics_, color="w", lw=8, zorder=1)
+#                 plt.plot(
+#                     plot_x,
+#                     dynamics_,
+#                     color=cmap_(i),
+#                     lw=5,
+#                     label=target_clusters[i],
+#                     zorder=2,
+#                 )
+#                 y_data_all = np.append(y_data_all, y_data)
+#             y_top_ = np.percentile(y_data_all, 99)
+#             plt.ylim([-0.05 * y_top_, y_top_])
+#             if legend:
+#                 plt.legend(
+#                     bbox_to_anchor=(1.05, 0.5),
+#                     loc="center left",
+#                     borderaxespad=0,
+#                     title="Target",
+#                     fontsize=fontsize_legend,
+#                     title_fontsize=fontsize_legend,
+#                 )
+#             plt.xticks(
+#                 [0, 0.25, 0.5, 0.75, 1],
+#                 [
+#                     "Source (0)\n(%s)" % source_cluster,
+#                     "0.25",
+#                     "0.5",
+#                     "0.75",
+#                     "Target (1)",
+#                 ],
+#                 fontsize=fontsize_label,
+#             )
+#             plt.title(gene, fontsize=fontsize_title)
+#             plt.show()
+#             if save:
+#                 filename = (
+#                     "%s_%s" % (save_filename, gene)
+#                     if save_dir == None
+#                     else "%s/%s_%s" % (save_dir, save_filename, gene)
+#                 )
+#                 fig.savefig(filename + ".png", bbox_inches="tight")
+#             plt.close()
+#         else:
+#             print('Gene "%s" was not found' % gene)
+
+
+# def DEG_dynamics(
+#     adata,
+#     source_cluster,
+#     target_clusters,
+#     path_key="path",
+#     exp_key=None,
+#     gene_dynamics_key="gene_dynamics",
+#     gene_dynamics_stats_key="mean",
+#     bifurcation_diagram_key="bifurcation_diagram",
+#     target_genes=[],
+#     n_div=100,
+#     figsize=(14, 10),
+#     fontsize_label=14,
+#     fontsize_text=12,
+#     fontsize_nDEG=18,
+#     fontsize_legend=10,
+#     DEG_min=1.0,
+#     DEG_rate=0.3,
+#     max_num_annotations=10,
+#     max_num_legend=40,
+#     interval=200,
+#     show=True,
+#     save=False,
+#     save_dir=None,
+#     save_filename="DEG_dynamics",
+#     save_type="gif",
+# ):
+#     if gene_dynamics_key not in adata.uns.keys():
+#         calc_dynamics(
+#             adata,
+#             source_cluster,
+#             target_clusters,
+#             path_key=path_key,
+#             exp_key=exp_key,
+#             gene_dynamics_key=gene_dynamics_key,
+#             n_div=n_div,
+#         )
+
+#     n_plot_ = int(len(target_clusters) * (len(target_clusters) - 1) / 2)
+#     cmap_ = plt.get_cmap("tab10")
+#     gene_dynamics_ = adata.uns[gene_dynamics_key][gene_dynamics_stats_key]
+#     matplotlib.rcParams["animation.embed_limit"] = 2**128
+#     vlines = [0, 0.2, 0.4, 0.6, 0.8, 1]
+#     vline_labels = np.append(
+#         np.append("Source (0)", np.array(vlines)[1:-1]), "Target (1)"
+#     )
+
+#     def update(t, name_i_, name_j_, max_val_, lim, i, j, k):
+#         print(
+#             "\r...computing %s vs %s (%d/%d) %d/%d"
+#             % (target_clusters[i], target_clusters[j], k, n_plot_, t + 1, n_div + 1),
+#             end="",
+#         )
+#         idx_DEG_i_ = np.arange(adata.shape[1])[
+#             (gene_dynamics_[name_j_][t] < gene_dynamics_[name_i_][t] - DEG_rate)
+#             & (gene_dynamics_[name_i_][t] > DEG_min)
+#         ]
+#         idx_DEG_j_ = np.arange(adata.shape[1])[
+#             (gene_dynamics_[name_i_][t] < gene_dynamics_[name_j_][t] - DEG_rate)
+#             & (gene_dynamics_[name_j_][t] > DEG_min)
+#         ]
+#         idx_DEG_i_ = idx_DEG_i_[
+#             np.argsort(
+#                 gene_dynamics_[name_i_][t][idx_DEG_i_]
+#                 - DEG_rate
+#                 - gene_dynamics_[name_j_][t][idx_DEG_i_]
+#             )[::-1]
+#         ]
+#         idx_DEG_j_ = idx_DEG_j_[
+#             np.argsort(
+#                 gene_dynamics_[name_j_][t][idx_DEG_j_]
+#                 - DEG_rate
+#                 - gene_dynamics_[name_i_][t][idx_DEG_j_]
+#             )[::-1]
+#         ]
+#         if len(idx_DEG_i_) > max_num_annotations:
+#             idx_DEG_ann_i_ = idx_DEG_i_[:max_num_annotations]
+#         else:
+#             idx_DEG_ann_i_ = idx_DEG_i_
+#         if len(idx_DEG_j_) > max_num_annotations:
+#             idx_DEG_ann_j_ = idx_DEG_j_[:max_num_annotations]
+#         else:
+#             idx_DEG_ann_j_ = idx_DEG_j_
+
+#         if len(idx_DEG_i_) > max_num_legend:
+#             idx_DEG_leg_i_ = idx_DEG_i_[:max_num_legend]
+#         else:
+#             idx_DEG_leg_i_ = idx_DEG_i_
+#         if len(idx_DEG_j_) > max_num_legend:
+#             idx_DEG_leg_j_ = idx_DEG_j_[:max_num_legend]
+#         else:
+#             idx_DEG_leg_j_ = idx_DEG_j_
+#         ax1.cla()
+#         ax2.cla()
+#         ax3.cla()
+#         name_i__ = source_cluster + "_" + target_clusters[0]
+#         ax1.text(
+#             0,
+#             adata.uns[bifurcation_diagram_key][name_i_][0],
+#             source_cluster + " ",
+#             fontsize=fontsize_label,
+#             va="center",
+#             ha="right",
+#         )
+#         for i_ in range(len(target_clusters)):
+#             name_i__ = source_cluster + "_" + target_clusters[i_]
+#             if name_i__ not in [name_i_, name_j_]:
+#                 y_ = adata.uns[bifurcation_diagram_key][name_i__]
+#                 ax1.plot(
+#                     np.linspace(0, 1, len(y_)),
+#                     y_,
+#                     lw=3,
+#                     zorder=2,
+#                     alpha=0.3,
+#                     color=cmap_(i_),
+#                 )
+#                 ax1.text(
+#                     1,
+#                     y_[-1],
+#                     " " + target_clusters[i_],
+#                     fontsize=fontsize_label,
+#                     va="center",
+#                     ha="left",
+#                     alpha=0.3,
+#                 )
+#         y_ = adata.uns[bifurcation_diagram_key][name_i_]
+#         ax1.plot(np.linspace(0, 1, len(y_)), y_, lw=5, zorder=3, color=cmap_(i))
+#         ax1.text(
+#             1,
+#             y_[-1],
+#             " " + target_clusters[i],
+#             fontsize=fontsize_label,
+#             va="center",
+#             ha="left",
+#         )
+#         y_ = adata.uns[bifurcation_diagram_key][name_j_]
+#         ax1.plot(np.linspace(0, 1, len(y_)), y_, lw=5, zorder=3, color=cmap_(j))
+#         ax1.text(
+#             1,
+#             y_[-1],
+#             " " + target_clusters[j],
+#             fontsize=fontsize_label,
+#             va="center",
+#             ha="left",
+#         )
+#         for vl in vlines:
+#             ax1.axvline(vl, color="k", ls="--", lw=1, zorder=0)
+#         ax1.axvline(t / n_div, color="r", ls="-", lw=2, zorder=3)
+#         ax1.tick_params(axis="x", which="both", top=True)
+#         ax1.spines["right"].set_visible(False)
+#         ax1.spines["left"].set_visible(False)
+#         ax1.spines["top"].set_visible(False)
+#         ax1.spines["bottom"].set_visible(False)
+#         ax1.xaxis.set_label_position("top")
+#         ax1.xaxis.tick_top()
+#         ax1.yaxis.set_visible(False)
+#         ax1.set_xticks(vlines)
+#         ax1.set_xticklabels(vline_labels, fontsize=fontsize_label)
+#         ax2.set_title("Time = %.02f [s]" % (t / n_div))
+#         ax2.scatter(
+#             gene_dynamics_[name_i_][t],
+#             gene_dynamics_[name_j_][t],
+#             s=1,
+#             color="gray",
+#             zorder=1,
+#         )
+#         ax2.scatter(
+#             gene_dynamics_[name_i_][t][idx_DEG_i_],
+#             gene_dynamics_[name_j_][t][idx_DEG_i_],
+#             color=cmap_(i),
+#             zorder=2,
+#             s=20,
+#         )
+#         ax2.scatter(
+#             gene_dynamics_[name_i_][t][idx_DEG_j_],
+#             gene_dynamics_[name_j_][t][idx_DEG_j_],
+#             color=cmap_(j),
+#             zorder=2,
+#             s=20,
+#         )
+#         texts = []
+#         for g in np.arange(adata.shape[1])[idx_DEG_ann_i_]:
+#             tx_ = ax2.text(
+#                 gene_dynamics_[name_i_][t][g],
+#                 gene_dynamics_[name_j_][t][g],
+#                 "_" + adata.var.index[g],
+#                 color="k",
+#                 zorder=2,
+#                 fontsize=fontsize_text,
+#             )
+#             texts = np.append(texts, tx_)
+#         for g in np.arange(adata.shape[1])[idx_DEG_ann_j_]:
+#             tx_ = ax2.text(
+#                 gene_dynamics_[name_i_][t][g],
+#                 gene_dynamics_[name_j_][t][g],
+#                 "_" + adata.var.index[g],
+#                 color="k",
+#                 zorder=2,
+#                 fontsize=fontsize_text,
+#             )
+#             texts = np.append(texts, tx_)
+#         if len(target_genes):
+#             for gene_ in target_genes:
+#                 idx_gene_ = adata.var.index == gene_
+#                 ax2.scatter(
+#                     gene_dynamics_[name_i_][t][idx_gene_],
+#                     gene_dynamics_[name_j_][t][idx_gene_],
+#                     s=20,
+#                     color="red",
+#                     zorder=2,
+#                 )
+#                 tx_ = ax2.text(
+#                     gene_dynamics_[name_i_][t][idx_gene_],
+#                     gene_dynamics_[name_j_][t][idx_gene_],
+#                     "_" + gene_,
+#                     color="r",
+#                     zorder=2,
+#                     fontsize=fontsize_text,
+#                 )
+#                 texts = np.append(texts, tx_)
+#         legend_i_ = ""
+#         for g in np.arange(adata.shape[1])[idx_DEG_leg_i_]:
+#             legend_i_ += "(%.02f, %.02f)  %s\n" % (
+#                 gene_dynamics_[name_i_][t][g],
+#                 gene_dynamics_[name_j_][t][g],
+#                 adata.var.index[g],
+#             )
+#         legend_j_ = ""
+#         for g in np.arange(adata.shape[1])[idx_DEG_leg_j_]:
+#             legend_j_ += "(%.02f, %.02f)  %s\n" % (
+#                 gene_dynamics_[name_i_][t][g],
+#                 gene_dynamics_[name_j_][t][g],
+#                 adata.var.index[g],
+#             )
+#         ax2.text(
+#             0.9 * (lim[1] - lim[0]) + lim[0],
+#             0.1 * (lim[1] - lim[0]) + lim[0],
+#             str(len(idx_DEG_i_)),
+#             ha="center",
+#             va="center",
+#             fontsize=fontsize_nDEG,
+#             color=cmap_(i),
+#             fontweight="bold",
+#             zorder=3,
+#         )
+#         ax2.text(
+#             0.1 * (lim[1] - lim[0]) + lim[0],
+#             0.9 * (lim[1] - lim[0]) + lim[0],
+#             str(len(idx_DEG_j_)),
+#             ha="center",
+#             va="center",
+#             fontsize=fontsize_nDEG,
+#             color=cmap_(j),
+#             fontweight="bold",
+#             zorder=3,
+#         )
+#         ax2.fill_between(
+#             lim,
+#             lim - DEG_rate,
+#             lim + DEG_rate,
+#             facecolor="lightgray",
+#             alpha=0.5,
+#             zorder=0,
+#         )
+#         ax2.fill(
+#             [-0.01 * max_val_, DEG_min, DEG_min, -0.01 * max_val_],
+#             [-0.01 * max_val_, -0.01 * max_val_, DEG_min, DEG_min],
+#             facecolor="lightgray",
+#             alpha=0.5,
+#             zorder=0,
+#         )
+#         ax2.set_xlabel(
+#             target_clusters[i],
+#             fontsize=fontsize_label,
+#             color=cmap_(i),
+#             fontweight="bold",
+#         )
+#         ax2.set_ylabel(
+#             target_clusters[j],
+#             fontsize=fontsize_label,
+#             color=cmap_(j),
+#             fontweight="bold",
+#         )
+#         ax2.set_xlim(lim)
+#         ax2.set_ylim(lim)
+#         ax2.grid(ls="--")
+#         ax3.text(
+#             0.0,
+#             1,
+#             target_clusters[i],
+#             ha="left",
+#             va="top",
+#             fontsize=fontsize_legend,
+#             color=cmap_(i),
+#             zorder=3,
+#             fontweight="bold",
+#         )
+#         ax3.text(
+#             0.0,
+#             0.97,
+#             legend_i_,
+#             ha="left",
+#             va="top",
+#             fontsize=fontsize_legend,
+#             color=cmap_(i),
+#             zorder=3,
+#         )
+#         ax3.text(
+#             0.5,
+#             1,
+#             target_clusters[j],
+#             ha="left",
+#             va="top",
+#             fontsize=fontsize_legend,
+#             color=cmap_(j),
+#             zorder=3,
+#             fontweight="bold",
+#         )
+#         ax3.text(
+#             0.5,
+#             0.97,
+#             legend_j_,
+#             ha="left",
+#             va="top",
+#             fontsize=fontsize_legend,
+#             color=cmap_(j),
+#             zorder=3,
+#         )
+#         ax3.axis("off")
+
+#     k = 0
+#     for i in range(len(target_clusters)):
+#         for j in range(i + 1, len(target_clusters)):
+#             name_i_ = source_cluster + "_" + target_clusters[i]
+#             name_j_ = source_cluster + "_" + target_clusters[j]
+#             fig = plt.figure(figsize=figsize, tight_layout=True)
+#             grid = plt.GridSpec(10, 14)
+#             ax1 = fig.add_subplot(grid[0:2, 0:12])
+#             ax2 = fig.add_subplot(grid[2:10, 0:8])
+#             ax3 = fig.add_subplot(grid[2:10, 8:14])
+#             max_val_ = max(
+#                 np.max(gene_dynamics_[name_i_]), np.max(gene_dynamics_[name_j_])
+#             )
+#             lim = np.array([-0.01 * max_val_, 1.01 * max_val_])
+#             k = k + 1
+#             ani = anm.FuncAnimation(
+#                 fig,
+#                 update,
+#                 interval=interval,
+#                 fargs=(
+#                     name_i_,
+#                     name_j_,
+#                     max_val_,
+#                     lim,
+#                     i,
+#                     j,
+#                     k,
+#                 ),
+#                 frames=n_div + 1,
+#                 repeat=False,
+#             )
+#             if show == True:
+#                 IPython.display.display(IPython.display.HTML(ani.to_jshtml()))
+#             if save:
+#                 filename = (
+#                     "%s_%s_%s" % (save_filename, target_clusters[i], target_clusters[j])
+#                     if save_dir == None
+#                     else "%s/%s_%s_%s"
+#                     % (save_dir, save_filename, target_clusters[i], target_clusters[j])
+#                 )
+#                 if len(target_genes):
+#                     filename += "_TG" + str(len(target_genes))
+#                 if save_type in ["gif", "video", "animetion"]:
+#                     filename += ".gif"
+#                     print("\nSaving gif animation as %s..." % filename)
+#                     ani.save(filename)
+#                 elif save_type in ["image", "png", "jpg", "jpeg"]:
+#                     if save_type == "image":
+#                         save_type = "png"
+#                     print("\nSaving gif animation as %s" % filename)
+#                     for t in range(n_div + 1):
+#                         fig = plt.figure(figsize=figsize, tight_layout=True)
+#                         grid = plt.GridSpec(10, 14)
+#                         ax1 = fig.add_subplot(grid[0:2, 0:12])
+#                         ax2 = fig.add_subplot(grid[2:10, 0:8])
+#                         ax3 = fig.add_subplot(grid[2:10, 8:14])
+#                         update(t, name_i_, name_j_, max_val_, lim, i, j, k)
+#                         filename_ = "%s_%03d.%s" % (filename, t, save_type)
+#                         fig.savefig(filename_, bbox_inches="tight")
+#                         plt.close()
+#             plt.close()
+
 def DEG_dynamics(
     adata,
     source_cluster,
@@ -2467,16 +3035,19 @@ def DEG_dynamics(
     path_key="path",
     exp_key=None,
     gene_dynamics_key="gene_dynamics",
+    gene_dynamics_stats_key="mean",
     bifurcation_diagram_key="bifurcation_diagram",
     target_genes=[],
     n_div=100,
     figsize=(14, 10),
     fontsize_label=14,
     fontsize_text=12,
-    fontsize_nDEG=18,
     fontsize_legend=10,
-    DEG_min=1.0,
-    DEG_rate=0.3,
+    PC = 1,
+    Pval_thd = 2,
+    FC_thd = 0.5,
+    FC_cut = 1e-2,
+    ps_active = 20,
     max_num_annotations=10,
     max_num_legend=40,
     interval=200,
@@ -2487,7 +3058,7 @@ def DEG_dynamics(
     save_type="gif",
 ):
     if gene_dynamics_key not in adata.uns.keys():
-        calc_gene_dynamics(
+        calc_dynamics(
             adata,
             source_cluster,
             target_clusters,
@@ -2496,68 +3067,40 @@ def DEG_dynamics(
             gene_dynamics_key=gene_dynamics_key,
             n_div=n_div,
         )
-
+    
+    data_exp_ = _set_expression_data(adata, exp_key)
     n_plot_ = int(len(target_clusters) * (len(target_clusters) - 1) / 2)
     cmap_ = plt.get_cmap("tab10")
-    gene_dynamics_ = adata.uns[gene_dynamics_key]
+    gene_dynamics_ = adata.uns[gene_dynamics_key][gene_dynamics_stats_key]
     matplotlib.rcParams["animation.embed_limit"] = 2**128
     vlines = [0, 0.2, 0.4, 0.6, 0.8, 1]
     vline_labels = np.append(
         np.append("Source (0)", np.array(vlines)[1:-1]), "Target (1)"
     )
 
-    def update(t, name_i_, name_j_, max_val_, lim, i, j, k):
+    def update(t, name_i_, name_j_, max_val_, xlim_, ylim_, i, j, k):
         print(
             "\r...computing %s vs %s (%d/%d) %d/%d"
-            % (target_clusters[i], target_clusters[j], k, n_plot_, t + 1, n_div + 1),
+            % (target_clusters[i], target_clusters[j], k, n_plot_, t + 1, n_div+1),
             end="",
         )
-        idx_DEG_i_ = np.arange(adata.shape[1])[
-            (gene_dynamics_[name_j_][t] < gene_dynamics_[name_i_][t] - DEG_rate)
-            & (gene_dynamics_[name_i_][t] > DEG_min)
-        ]
-        idx_DEG_j_ = np.arange(adata.shape[1])[
-            (gene_dynamics_[name_i_][t] < gene_dynamics_[name_j_][t] - DEG_rate)
-            & (gene_dynamics_[name_j_][t] > DEG_min)
-        ]
-        idx_DEG_i_ = idx_DEG_i_[
-            np.argsort(
-                gene_dynamics_[name_i_][t][idx_DEG_i_]
-                - DEG_rate
-                - gene_dynamics_[name_j_][t][idx_DEG_i_]
-            )[::-1]
-        ]
-        idx_DEG_j_ = idx_DEG_j_[
-            np.argsort(
-                gene_dynamics_[name_j_][t][idx_DEG_j_]
-                - DEG_rate
-                - gene_dynamics_[name_i_][t][idx_DEG_j_]
-            )[::-1]
-        ]
-        if len(idx_DEG_i_) > max_num_annotations:
-            idx_DEG_ann_i_ = idx_DEG_i_[:max_num_annotations]
-        else:
-            idx_DEG_ann_i_ = idx_DEG_i_
-        if len(idx_DEG_j_) > max_num_annotations:
-            idx_DEG_ann_j_ = idx_DEG_j_[:max_num_annotations]
-        else:
-            idx_DEG_ann_j_ = idx_DEG_j_
+        val_i_ = data_exp_[adata.uns['path_scaled'][name_i_][:,t]]
+        val_j_ = data_exp_[adata.uns['path_scaled'][name_j_][:,t]]
+        FC_ = np.nan_to_num(np.log2(np.mean(val_i_,axis=0)/np.mean(val_j_,axis=0)))
+        Pval_ = np.nan_to_num(-np.log10(scipy.stats.ttest_ind(val_i_, val_j_)[1]))
+        
+        idx_sig_i_ = np.arange(adata.shape[1])[(Pval_ > np.percentile(Pval_,100-Pval_thd)) & (FC_ < -FC_thd)]
+        idx_sig_i_ = idx_sig_i_[np.argsort(FC_[idx_sig_i_])]
+        idx_sig_j_ = np.arange(adata.shape[1])[(Pval_ > np.percentile(Pval_,100-Pval_thd)) & (FC_ > FC_thd)]
+        idx_sig_j_ = idx_sig_j_[np.argsort(FC_[idx_sig_j_])[::-1]]
 
-        if len(idx_DEG_i_) > max_num_legend:
-            idx_DEG_leg_i_ = idx_DEG_i_[:max_num_legend]
-        else:
-            idx_DEG_leg_i_ = idx_DEG_i_
-        if len(idx_DEG_j_) > max_num_legend:
-            idx_DEG_leg_j_ = idx_DEG_j_[:max_num_legend]
-        else:
-            idx_DEG_leg_j_ = idx_DEG_j_
         ax1.cla()
         ax2.cla()
         ax3.cla()
         name_i__ = source_cluster + "_" + target_clusters[0]
         ax1.text(
             0,
-            adata.uns[bifurcation_diagram_key][name_i_][0],
+            adata.uns[bifurcation_diagram_key][name_i_][0,PC-1],
             source_cluster + " ",
             fontsize=fontsize_label,
             va="center",
@@ -2566,7 +3109,7 @@ def DEG_dynamics(
         for i_ in range(len(target_clusters)):
             name_i__ = source_cluster + "_" + target_clusters[i_]
             if name_i__ not in [name_i_, name_j_]:
-                y_ = adata.uns[bifurcation_diagram_key][name_i__]
+                y_ = adata.uns[bifurcation_diagram_key][name_i__][:,PC-1]
                 ax1.plot(
                     np.linspace(0, 1, len(y_)),
                     y_,
@@ -2584,7 +3127,7 @@ def DEG_dynamics(
                     ha="left",
                     alpha=0.3,
                 )
-        y_ = adata.uns[bifurcation_diagram_key][name_i_]
+        y_ = adata.uns[bifurcation_diagram_key][name_i_][:,PC-1]
         ax1.plot(np.linspace(0, 1, len(y_)), y_, lw=5, zorder=3, color=cmap_(i))
         ax1.text(
             1,
@@ -2594,7 +3137,7 @@ def DEG_dynamics(
             va="center",
             ha="left",
         )
-        y_ = adata.uns[bifurcation_diagram_key][name_j_]
+        y_ = adata.uns[bifurcation_diagram_key][name_j_][:,PC-1]
         ax1.plot(np.linspace(0, 1, len(y_)), y_, lw=5, zorder=3, color=cmap_(j))
         ax1.text(
             1,
@@ -2618,133 +3161,18 @@ def DEG_dynamics(
         ax1.set_xticks(vlines)
         ax1.set_xticklabels(vline_labels, fontsize=fontsize_label)
         ax2.set_title("Time = %.02f [s]" % (t / n_div))
-        ax2.scatter(
-            gene_dynamics_[name_i_][t],
-            gene_dynamics_[name_j_][t],
-            s=1,
-            color="gray",
-            zorder=1,
-        )
-        ax2.scatter(
-            gene_dynamics_[name_i_][t][idx_DEG_i_],
-            gene_dynamics_[name_j_][t][idx_DEG_i_],
-            color=cmap_(i),
-            zorder=2,
-            s=20,
-        )
-        ax2.scatter(
-            gene_dynamics_[name_i_][t][idx_DEG_j_],
-            gene_dynamics_[name_j_][t][idx_DEG_j_],
-            color=cmap_(j),
-            zorder=2,
-            s=20,
-        )
-        texts = []
-        for g in np.arange(adata.shape[1])[idx_DEG_ann_i_]:
-            tx_ = ax2.text(
-                gene_dynamics_[name_i_][t][g],
-                gene_dynamics_[name_j_][t][g],
-                "_" + adata.var.index[g],
-                color="k",
-                zorder=2,
-                fontsize=fontsize_text,
-            )
-            texts = np.append(texts, tx_)
-        for g in np.arange(adata.shape[1])[idx_DEG_ann_j_]:
-            tx_ = ax2.text(
-                gene_dynamics_[name_i_][t][g],
-                gene_dynamics_[name_j_][t][g],
-                "_" + adata.var.index[g],
-                color="k",
-                zorder=2,
-                fontsize=fontsize_text,
-            )
-            texts = np.append(texts, tx_)
-        if len(target_genes):
-            for gene_ in target_genes:
-                idx_gene_ = adata.var.index == gene_
-                ax2.scatter(
-                    gene_dynamics_[name_i_][t][idx_gene_],
-                    gene_dynamics_[name_j_][t][idx_gene_],
-                    s=20,
-                    color="red",
-                    zorder=2,
-                )
-                tx_ = ax2.text(
-                    gene_dynamics_[name_i_][t][idx_gene_],
-                    gene_dynamics_[name_j_][t][idx_gene_],
-                    "_" + gene_,
-                    color="r",
-                    zorder=2,
-                    fontsize=fontsize_text,
-                )
-                texts = np.append(texts, tx_)
-        legend_i_ = ""
-        for g in np.arange(adata.shape[1])[idx_DEG_leg_i_]:
-            legend_i_ += "(%.02f, %.02f)  %s\n" % (
-                gene_dynamics_[name_i_][t][g],
-                gene_dynamics_[name_j_][t][g],
-                adata.var.index[g],
-            )
-        legend_j_ = ""
-        for g in np.arange(adata.shape[1])[idx_DEG_leg_j_]:
-            legend_j_ += "(%.02f, %.02f)  %s\n" % (
-                gene_dynamics_[name_i_][t][g],
-                gene_dynamics_[name_j_][t][g],
-                adata.var.index[g],
-            )
-        ax2.text(
-            0.9 * (lim[1] - lim[0]) + lim[0],
-            0.1 * (lim[1] - lim[0]) + lim[0],
-            str(len(idx_DEG_i_)),
-            ha="center",
-            va="center",
-            fontsize=fontsize_nDEG,
-            color=cmap_(i),
-            fontweight="bold",
-            zorder=3,
-        )
-        ax2.text(
-            0.1 * (lim[1] - lim[0]) + lim[0],
-            0.9 * (lim[1] - lim[0]) + lim[0],
-            str(len(idx_DEG_j_)),
-            ha="center",
-            va="center",
-            fontsize=fontsize_nDEG,
-            color=cmap_(j),
-            fontweight="bold",
-            zorder=3,
-        )
-        ax2.fill_between(
-            lim,
-            lim - DEG_rate,
-            lim + DEG_rate,
-            facecolor="lightgray",
-            alpha=0.5,
-            zorder=0,
-        )
-        ax2.fill(
-            [-0.01 * max_val_, DEG_min, DEG_min, -0.01 * max_val_],
-            [-0.01 * max_val_, -0.01 * max_val_, DEG_min, DEG_min],
-            facecolor="lightgray",
-            alpha=0.5,
-            zorder=0,
-        )
-        ax2.set_xlabel(
-            target_clusters[i],
-            fontsize=fontsize_label,
-            color=cmap_(i),
-            fontweight="bold",
-        )
-        ax2.set_ylabel(
-            target_clusters[j],
-            fontsize=fontsize_label,
-            color=cmap_(j),
-            fontweight="bold",
-        )
-        ax2.set_xlim(lim)
-        ax2.set_ylim(lim)
-        ax2.grid(ls="--")
+        ax2.scatter(FC_,Pval_,color="gray",s=1,zorder=1)
+        ax2.scatter(FC_[idx_sig_i_],Pval_[idx_sig_i_],color=cmap_(i),s=ps_active,zorder=10)
+        ax2.scatter(FC_[idx_sig_j_],Pval_[idx_sig_j_],color=cmap_(j),s=ps_active,zorder=10)
+        for i_ in range(min(len(idx_sig_i_),max_num_annotations)):
+            ax2.text(FC_[idx_sig_i_[i_]],Pval_[idx_sig_i_[i_]],adata.var.index[i_]+"_",zorder=20,fontsize=fontsize_text,ha="right")
+        for i_ in range(min(len(idx_sig_j_),max_num_annotations)):
+            ax2.text(FC_[idx_sig_j_[i_]],Pval_[idx_sig_j_[i_]],"_"+adata.var.index[i_],zorder=20,fontsize=fontsize_text)
+        ax2.grid(ls="--",zorder=0)
+        ax2.set_xlim(xlim_)
+        ax2.set_ylim(ylim_)
+        ax2.set_xlabel("Log2 Fold Change",fontsize=fontsize_label)
+        ax2.set_ylabel("-Log10(p-value)",fontsize=fontsize_label)
         ax3.text(
             0.0,
             1,
@@ -2756,6 +3184,14 @@ def DEG_dynamics(
             zorder=3,
             fontweight="bold",
         )
+        legend_i_ = ""
+        for i_ in range(min(len(idx_sig_i_),max_num_legend)):
+            g = idx_sig_i_[i_]
+            legend_i_ += "(%.02f, %.02f)  %s\n" % (
+                FC_[g],
+                Pval_[g],
+                adata.var.index[g],
+            )
         ax3.text(
             0.0,
             0.97,
@@ -2777,6 +3213,14 @@ def DEG_dynamics(
             zorder=3,
             fontweight="bold",
         )
+        legend_j_ = ""
+        for i_ in range(min(len(idx_sig_j_),max_num_legend)):
+            g = idx_sig_j_[i_]
+            legend_j_ += "(%.02f, %.02f)  %s\n" % (
+                FC_[g],
+                Pval_[g],
+                adata.var.index[g],
+            )
         ax3.text(
             0.5,
             0.97,
@@ -2794,6 +3238,13 @@ def DEG_dynamics(
         for j in range(i + 1, len(target_clusters)):
             name_i_ = source_cluster + "_" + target_clusters[i]
             name_j_ = source_cluster + "_" + target_clusters[j]
+            t = n_div
+            val_i_ = data_exp_[adata.uns['path_scaled'][name_i_][:,t]]
+            val_j_ = data_exp_[adata.uns['path_scaled'][name_j_][:,t]]
+            FC_ = np.nan_to_num(np.log2(np.mean(val_i_,axis=0)/np.mean(val_j_,axis=0)))
+            Pval_ = np.nan_to_num(-np.log10(scipy.stats.ttest_ind(val_i_, val_j_)[1]))
+            xlim_ = [-np.max(np.abs(FC_))*1.3,np.max(np.abs(FC_))*1.3]
+            ylim_ = [-0.5,np.max(Pval_)*1.01]
             fig = plt.figure(figsize=figsize, tight_layout=True)
             grid = plt.GridSpec(10, 14)
             ax1 = fig.add_subplot(grid[0:2, 0:12])
@@ -2804,7 +3255,7 @@ def DEG_dynamics(
             )
             lim = np.array([-0.01 * max_val_, 1.01 * max_val_])
             k = k + 1
-            ani = anm.FuncAnimation(
+            ani = matplotlib.animation.FuncAnimation(
                 fig,
                 update,
                 interval=interval,
@@ -2812,12 +3263,13 @@ def DEG_dynamics(
                     name_i_,
                     name_j_,
                     max_val_,
-                    lim,
+                    xlim_,
+                    ylim_,
                     i,
                     j,
                     k,
                 ),
-                frames=n_div + 1,
+                frames=n_div+1,
                 repeat=False,
             )
             if show == True:
@@ -2878,7 +3330,7 @@ def DEG_dynamics_clusters(
     save_type="gif",
 ):
     if gene_dynamics_key not in adata.uns.keys():
-        calc_gene_dynamics(
+        calc_dynamics(
             adata,
             source_cluster,
             target_clusters,
@@ -3255,19 +3707,66 @@ def DEG_dynamics_clusters(
                     matplotlib.use("module://matplotlib_inline.backend_inline")
 
 
+# def calc_bifurcation_diagram(
+#     adata,
+#     source_cluster,
+#     target_clusters,
+#     path_key="path",
+#     exp_key=None,
+#     gene_dynamics_key="gene_dynamics",
+#     bifurcation_diagram_key="bifurcation_diagram",
+#     n_div=100,
+#     PC=1,
+# ):
+#     if gene_dynamics_key not in adata.uns.keys():
+#         calc_dynamics(
+#             adata,
+#             source_cluster,
+#             target_clusters,
+#             path_key=path_key,
+#             exp_key=exp_key,
+#             gene_dynamics_key=gene_dynamics_key,
+#             n_div=n_div,
+#         )
+
+#     name_i_ = source_cluster + "_" + target_clusters[0]
+#     samples_ = np.empty(
+#         [
+#             len(target_clusters),
+#             adata.uns[gene_dynamics_key][name_i_].shape[0],
+#             adata.uns[gene_dynamics_key][name_i_].shape[1],
+#         ],
+#         dtype=float,
+#     )
+#     for i in range(len(target_clusters)):
+#         name_i_ = source_cluster + "_" + target_clusters[i]
+#         samples_[i] = adata.uns[gene_dynamics_key][name_i_]
+#     pca_ = sklearn.decomposition.PCA().fit(samples_[:, -1])
+#     samples_pca_ = pca_.transform(np.concatenate(samples_))
+
+#     bd_ = {}
+#     for i in range(len(target_clusters)):
+#         name_i_ = source_cluster + "_" + target_clusters[i]
+#         bd_[name_i_] = samples_pca_[i * (n_div + 1) : (i + 1) * (n_div + 1), PC - 1]
+
+#     adata.uns[bifurcation_diagram_key] = bd_
+
+
 def calc_bifurcation_diagram(
     adata,
     source_cluster,
     target_clusters,
     path_key="path",
+    path_scaled_key="path_scaled",
     exp_key=None,
+    key_stats = "mean",
     gene_dynamics_key="gene_dynamics",
     bifurcation_diagram_key="bifurcation_diagram",
     n_div=100,
     PC=1,
 ):
     if gene_dynamics_key not in adata.uns.keys():
-        calc_gene_dynamics(
+        calc_dynamics(
             adata,
             source_cluster,
             target_clusters,
@@ -3277,28 +3776,47 @@ def calc_bifurcation_diagram(
             n_div=n_div,
         )
 
+    data_exp = _set_expression_data(adata, exp_key)
+    path_scaled = adata.uns[path_scaled_key]
     name_i_ = source_cluster + "_" + target_clusters[0]
     samples_ = np.empty(
         [
             len(target_clusters),
-            adata.uns["gene_dynamics"][name_i_].shape[0],
-            adata.uns["gene_dynamics"][name_i_].shape[1],
+            adata.uns[gene_dynamics_key][key_stats][name_i_].shape[0],
+            adata.uns[gene_dynamics_key][key_stats][name_i_].shape[1],
         ],
         dtype=float,
     )
     for i in range(len(target_clusters)):
         name_i_ = source_cluster + "_" + target_clusters[i]
-        samples_[i] = adata.uns["gene_dynamics"][name_i_]
+        samples_[i] = adata.uns[gene_dynamics_key][key_stats][name_i_]
     pca_ = sklearn.decomposition.PCA().fit(samples_[:, -1])
     samples_pca_ = pca_.transform(np.concatenate(samples_))
+    data_all_ = np.array([data_exp[path_scaled[k_]] for k_ in path_scaled.keys()])
+    data_all_pca_ = pca_.transform(data_all_.reshape(data_all_.shape[0]*data_all_.shape[1]*data_all_.shape[2],data_all_.shape[3]))
+    data_all_pca_ = data_all_pca_.reshape(data_all_.shape[0],data_all_.shape[1],data_all_.shape[2],data_all_pca_.shape[1])
 
     bd_ = {}
     for i in range(len(target_clusters)):
         name_i_ = source_cluster + "_" + target_clusters[i]
-        bd_[name_i_] = samples_pca_[i * (n_div + 1) : (i + 1) * (n_div + 1), PC - 1]
+        bd_[name_i_] = samples_pca_[i * (n_div+1) : (i + 1) * (n_div+1)]
 
     adata.uns[bifurcation_diagram_key] = bd_
+    adata.uns[gene_dynamics_key+"_PC"] = data_all_pca_
 
+    # data_exp = _set_expression_data(adata, exp_key)
+    # path_scaled = adata.uns[path_scaled_key]
+    # data_all_ = np.array([data_exp[path_scaled[k_]] for k_ in path_scaled.keys()])
+    # pca_ = sklearn.decomposition.PCA().fit(np.concatenate(data_all_)[:,-1])
+    # data_all_pca_ = pca_.transform(data_all_.reshape(data_all_.shape[0]*data_all_.shape[1]*data_all_.shape[2],data_all_.shape[3]))
+    # data_all_pca_ = data_all_pca_.reshape(data_all_.shape[0],data_all_.shape[1],data_all_.shape[2],data_all_pca_.shape[1])
+    # data_all_pca_mean_ = np.mean(data_all_pca_,axis=1)
+
+
+    # adata.uns[bifurcation_diagram_key] = {}
+    # for i in range(len(target_clusters)):
+    #     name_i_ = source_cluster + "_" + target_clusters[i]
+    #     adata.uns[bifurcation_diagram_key][name_i_] = data_all_pca_mean_[i]
 
 def bifurcation_diagram(
     adata,
@@ -3318,7 +3836,7 @@ def bifurcation_diagram(
     save_filename="Bifurcation_diagram",
 ):
     if gene_dynamics_key not in adata.uns.keys():
-        calc_gene_dynamics(
+        calc_dynamics(
             adata,
             source_cluster,
             target_clusters,
@@ -3341,7 +3859,7 @@ def bifurcation_diagram(
             PC=PC,
         )
 
-    vlines = [0, 0.2, 0.4, 0.6, 0.8, 1]
+    vlines = [0, 0.1,0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]
     vline_labels = np.append(
         np.append("Source (0)", np.array(vlines)[1:-1]), "Target (1)"
     )
@@ -3350,7 +3868,7 @@ def bifurcation_diagram(
     name_i_ = source_cluster + "_" + target_clusters[0]
     ax.text(
         0,
-        adata.uns[bifurcation_diagram_key][name_i_][0],
+        adata.uns[bifurcation_diagram_key][name_i_][:,PC-1][0],
         source_cluster + " ",
         fontsize=fontsize_label,
         va="center",
@@ -3359,8 +3877,8 @@ def bifurcation_diagram(
     texts = []
     for i in range(len(target_clusters)):
         name_i_ = source_cluster + "_" + target_clusters[i]
-        y_ = adata.uns[bifurcation_diagram_key][name_i_]
-        ax.plot(np.linspace(0, 1, n_div + 1), y_, lw=5, zorder=2)
+        y_ = adata.uns[bifurcation_diagram_key][name_i_][:,PC-1]
+        ax.plot(np.linspace(0, 1, n_div+1), y_, lw=5, zorder=2)
         texts = np.append(
             texts,
             ax.text(
@@ -3372,10 +3890,10 @@ def bifurcation_diagram(
                 ha="left",
             ),
         )
-    if adjusttext:
-        adjustText.adjust_text(texts, arrowprops=dict(arrowstyle="-", color="k"))
+    # if adjusttext:
+    #     adjustText.adjust_text(texts, arrowprops=dict(arrowstyle="-", color="k"))
     for vl in vlines:
-        ax.axvline(vl, color="k", ls="--", lw=1, zorder=0)
+        ax.axvline(vl, color="k", ls="--", lw=1, zorder=0,alpha=0.5)
     ax.tick_params(axis="x", which="both", top=True)
     ax.spines["right"].set_visible(False)
     ax.spines["left"].set_visible(False)
@@ -3386,6 +3904,146 @@ def bifurcation_diagram(
     ax.yaxis.set_visible(False)
     ax.set_xticks(vlines)
     ax.set_xticklabels(vline_labels, fontsize=fontsize_label)
+    if save:
+        filename = (
+            "%s" % (save_filename)
+            if save_dir == None
+            else "%s/%s" % (save_dir, save_filename)
+        )
+        fig.savefig(filename + ".png", bbox_inches="tight")
+
+def landscape(
+    adata,
+    source_cluster,
+    target_clusters,
+    path_key = "path",
+    path_scaled_key = "path_scaled",
+    exp_key=None,
+    gene_dynamics_key="gene_dynamics",
+    bifurcation_diagram_key="bifurcation_diagram",
+    pot_key = "potential",
+    pot_stat_key = "mean",
+    potential_dynamics_key = "potential_dynamics",
+    n_div=100,
+    n_grid = 200,
+    merge_step = 3,
+    pot_range = 1,
+    valley_range = 0.1,
+    plot_path = False,
+    figsize=(10, 0),
+    fontsize_label = 12,
+    fontize_text = 12,
+    adjusttext=False,
+    PC=1,
+    save=False,
+    save_dir=None,
+    save_filename="Landscape",
+    
+):
+    if gene_dynamics_key not in adata.uns.keys():
+        calc_dynamics(
+            adata,
+            source_cluster,
+            target_clusters,
+            path_key=path_key,
+            exp_key=exp_key,
+            gene_dynamics_key=gene_dynamics_key,
+            n_div=n_div,
+        )
+
+    if bifurcation_diagram_key not in adata.uns.keys():
+        calc_bifurcation_diagram(
+            adata,
+            source_cluster,
+            target_clusters,
+            path_key=path_key,
+            exp_key=exp_key,
+            gene_dynamics_key=gene_dynamics_key,
+            bifurcation_diagram_key=bifurcation_diagram_key,
+            n_div=n_div,
+            PC=PC,
+        )
+
+    data_all_ = adata.uns[gene_dynamics_key+"_PC"]
+    ylim_min,y_lim_max = np.min(data_all_[:,:,:,PC-1]), np.max(data_all_[:,:,:,PC-1])
+    y_ = np.linspace(ylim_min,y_lim_max, n_grid)
+    z_plot = np.zeros([n_div-merge_step,n_grid])
+    c_plot = np.zeros([n_div-merge_step,n_grid])
+    pot_ = adata.obs[pot_key]
+    cmap = plt.get_cmap("tab10")
+
+    fig = plt.figure(figsize=(10,10))
+    ax = fig.add_subplot(111, projection='3d')
+    for ti_ in range(n_div-merge_step):
+        for i in range(len(data_all_)):
+            name_i_ = source_cluster + "_" + target_clusters[i]
+            data_ = data_all_[i,:,ti_:ti_+merge_step+1:,PC-1].flatten()
+            pot_t_ = pot_[adata.uns[path_scaled_key][name_i_][:,ti_:ti_+merge_step+1].flatten()].mean()*pot_range/pot_.max()
+            kde_model = scipy.stats.gaussian_kde(data_)
+            x_ = np.repeat(ti_/(n_div-merge_step),n_div)
+            z_ = pot_t_-valley_range*kde_model(y_)/np.max(kde_model(y_))
+            z_plot[ti_] += z_/len(data_all_)
+            c_plot[ti_] += kde_model(y_)#/np.max(kde_model(y_))/len(data_all_)
+        c_plot[ti_] = 1-c_plot[ti_]/np.max(c_plot[ti_])
+
+    x1 = np.linspace(0,1,n_div-merge_step)
+    x2 = y_
+    X1, X2 = np.meshgrid(x1, x2)
+
+    norm = matplotlib.colors.Normalize(vmin=0, vmax=1)
+    basecolor = "chocolate"#matplotlib.cm.gist_earth(0.1)
+    basecolor = matplotlib.cm.Oranges(0.99)
+    basecolor_alpha = 0.9
+
+    ls = matplotlib.colors.LightSource(270, 45)
+    rgb = ls.shade(c_plot.T, cmap=matplotlib.cm.gist_earth, vert_exag=0.1, blend_mode='soft',vmin=-0.05, vmax=1.1)
+    surf = ax.plot_surface(X1, X2, z_plot.T, facecolors=rgb, linewidth=0, zorder=0, alpha=1, edgecolor='none',rstride=1, cstride=1, antialiased=False, shade=False)
+    px_,py_,pz_ = np.repeat(1,n_grid),y_,z_plot[-1]
+    verts = [[px_[i], py_[i], pz_[i]] for i in range(len(px_))] + [[px_[i], py_[i], 0] for i in reversed(range(len(px_)))]
+    poly = mpl_toolkits.mplot3d.art3d.Poly3DCollection([verts], alpha=basecolor_alpha, facecolors=basecolor, edgecolors='none',zorder=0)
+    ax.add_collection3d(poly)
+
+    px_,py_,pz_ = np.repeat(0,n_grid),y_,z_plot[0]
+    verts = [[px_[i], py_[i], pz_[i]] for i in range(len(px_))] + [[px_[i], py_[i], 0] for i in reversed(range(len(px_)))]
+    poly = mpl_toolkits.mplot3d.art3d.Poly3DCollection([verts], alpha=basecolor_alpha, facecolors=basecolor, edgecolors='none',zorder=0)
+    ax.add_collection3d(poly)
+
+    px_,py_,pz_ = np.linspace(0,1,n_div-merge_step),np.repeat(y_lim_max,n_div),z_plot.T[-1]
+    verts = [[px_[i], py_[i], pz_[i]] for i in range(len(px_))] + [[px_[i], py_[i], 0] for i in reversed(range(len(px_)))]
+    poly = mpl_toolkits.mplot3d.art3d.Poly3DCollection([verts], alpha=basecolor_alpha, facecolors=basecolor, edgecolors='none',zorder=0)
+    ax.add_collection3d(poly)
+
+    px_,py_,pz_ = np.linspace(0,1,n_div-merge_step),np.repeat(ylim_min,n_div),z_plot.T[0]
+    verts = [[px_[i], py_[i], pz_[i]] for i in range(len(px_))] + [[px_[i], py_[i], 0] for i in reversed(range(len(px_)))]
+    poly = mpl_toolkits.mplot3d.art3d.Poly3DCollection([verts], alpha=basecolor_alpha, facecolors=basecolor, edgecolors='none',zorder=0)
+    ax.add_collection3d(poly)
+
+    if plot_path:
+        for i in range(len(target_clusters)):
+            name_i_ = source_cluster + "_" + target_clusters[i]
+            y_,z_ = adata.uns[bifurcation_diagram_key][name_i_][:,PC-1],adata.uns[potential_dynamics_key][pot_key][pot_stat_key][name_i_]*pot_range/pot_.max()
+            y_,z_ = np.array([np.mean(y_[i:i+merge_step]) for i in range(n_div-merge_step)]),np.array([np.mean(z_[i:i+merge_step]) for i in range(n_div-merge_step)])
+            z_ = z_ - np.max(c_plot,axis=1)*valley_range/len(target_clusters)
+            ax.plot(np.linspace(0, 1, n_div-merge_step), y_, z_, lw=4, color="w", zorder=10, alpha=0.8)
+            ax.plot(np.linspace(0, 1, n_div-merge_step), y_, z_, lw=2, c=cmap(i), zorder=100)
+
+    text = ax.text(0,np.argmax(z_plot[0])/n_grid,np.max(z_plot[0]),source_cluster,fontsize=fontize_text,va="bottom",ha="center",zorder=100,fontweight="bold")
+    text.set_path_effects([matplotlib.patheffects.withStroke(linewidth=3, foreground='white')])
+    for i in range(len(target_clusters)):
+        name_i_ = source_cluster + "_" + target_clusters[i]
+        z_ = adata.uns[potential_dynamics_key][pot_key][pot_stat_key][name_i_][-1]*pot_range/pot_.max()-np.max(c_plot[-1])*valley_range/len(target_clusters)
+        # ax.scatter(1.0,adata.uns[bifurcation_diagram_key][name_i_][:,PC-1][-1],adata.uns[potential_dynamics_key][z_key][z_stat_key][name_i_][-1]+np.min(z_plot),s=10,zorder=200)
+        text = ax.text(1.00,adata.uns[bifurcation_diagram_key][name_i_][:,PC-1][-1],adata.uns[potential_dynamics_key][pot_key][pot_stat_key][name_i_][-1]+np.min(z_plot),
+                target_clusters[i],fontsize=fontize_text,va="top",ha="center",zorder=100,fontweight="bold",c=cmap(i))
+        text.set_path_effects([matplotlib.patheffects.withStroke(linewidth=3, foreground='white')])
+    ax.set_xlim(0,1.01)
+    ax.set_ylim(ylim_min,y_lim_max)
+    ax.set_zlim(0,1)
+    ax.set_xlabel("Time",fontsize=fontsize_label)
+    ax.set_ylabel("State space (PC%s)" % PC,fontsize=fontsize_label)
+    ax.set_zlabel("Potential",fontsize=fontsize_label)
+    ax.set_box_aspect((1, 1, 0.5))
+    ax.view_init(elev=20, azim=10)
     if save:
         filename = (
             "%s" % (save_filename)
@@ -3412,7 +4070,7 @@ def calc_gene_atlas(
     n_components=2,
 ):
     if gene_dynamics_key not in adata.uns.keys():
-        calc_gene_dynamics(
+        calc_dynamics(
             adata,
             source_cluster,
             target_clusters,
@@ -3826,7 +4484,7 @@ def key_gene_dynamics(
     save_filename="Key_gene_dynamics",
 ):
     if gene_dynamics_key not in adata.uns.keys():
-        calc_gene_dynamics(
+        calc_dynamics(
             adata,
             source_cluster,
             target_clusters,
