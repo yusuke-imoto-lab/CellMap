@@ -66,7 +66,7 @@ tutorial/.ipynb_checkpoints/CellMap_tutorial_bonemarrow-checkpoint.ipynb
 tutorial/.ipynb_checkpoints/CellMap_tutorial_pancreas-checkpoint.ipynb
 tutorial/CellMap_tutorial_bonemarrow.ipynb
 tutorial/CellMap_tutorial_hippocampus.ipynb
-tutorial/CellMap_tutorial_endocrine.ipynb
+# tutorial/CellMap_tutorial_endocrine.ipynb
 *.ai
 figures/materials/Fig_endo_08_Potential3D.png
 figures/materials/Fig_hippo_02_Potential_flow.png
