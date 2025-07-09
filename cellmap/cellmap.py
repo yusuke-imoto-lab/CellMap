@@ -3889,14 +3889,19 @@ def pl_GRN(
     save_filename="GRN",
     grn_color_map="bwr",
     sort=False,
+    cutoff_prob = 0.1,
+    cutoff_val = 0.01,
 ):
     genes = np.array(adata.uns['CellMap_parameters']["genes"])
     idx_genes = np.isin(adata.var.index, genes)
     n_genes = sum(idx_genes)
+    cmap_ = plt.get_cmap("tab10")
 
-    for name_i_ in adata.uns[grn_key]["networks"].keys():
+    for i, name_i_ in enumerate(adata.uns[grn_key]["networks"].keys()):
         GRN_color = adata.uns[grn_key]["networks"][name_i_]["GRN"]
         GRN_size  = adata.uns[grn_key]["networks"][name_i_]["GRN_prob"]
+        GRN_color = np.where(np.abs(GRN_color) > cutoff_val, GRN_color, 0)
+        GRN_size  = np.where(GRN_size > cutoff_prob, GRN_size, 0)
 
         idx_order = np.argsort(adata.uns[grn_key]["networks"][name_i_]['causal_order'])
         genes_names = np.array([f"{g_}({i_+1:02d})" for g_, i_ in zip(genes, np.argsort(idx_order))])
@@ -3905,8 +3910,6 @@ def pl_GRN(
             GRN_size  = GRN_size[idx_order][:, idx_order]
             genes_names = genes_names[idx_order]
         fig, ax = plt.subplots(figsize=figsize, constrained_layout=True, tight_layout=True)
-        fontsize = 14
-        vmin, vmax = -0.2, 0.2
         prob_examples = [0.25, 0.5, 0.75, 1.0]
         size_examples = [p * 500 for p in prob_examples]
         handles = [
@@ -3931,12 +3934,12 @@ def pl_GRN(
         y = y.flatten()
         colors = GRN_color.flatten()
         sizes = GRN_size.flatten() * 1000
-        y = n_genes - 1 - y  # Reverse y-axis to match the original order
+        y = n_genes - 1 - y 
         scatter = ax.scatter(
             x, y, c=colors, s=sizes, cmap=grn_color_map, vmin=vmin, vmax=vmax,
             alpha=1, edgecolors='k', linewidths=0.5, zorder=10
         )
-        cbar = plt.colorbar(scatter, ax=ax, label='Regulatory strength', shrink=0.6, aspect=20, pad=0.02, anchor=(0.0, 0.0))
+        cbar = plt.colorbar(scatter, ax=ax, label='Regulatory strength', shrink=0.6, aspect=20, pad=0.02, anchor=(0.0, 0.025))
         cbar.ax.tick_params(labelsize=fontsize)
         cbar.set_label('Regulatory strength', fontsize=fontsize)
         ax.set_xticks(np.arange(n_genes))
@@ -3958,6 +3961,12 @@ def pl_GRN(
             'edgecolor': 'k',
             'linewidth': 1
         })
+        ax.set_title(
+            f"Gene Regulatory Network ({name_i_})",
+            fontsize=fontsize,
+            pad=20,
+            bbox=dict(facecolor='white', edgecolor=cmap_(i),  linewidth=2)
+        )
         ax.grid(True, zorder=0, ls="--")
         ax.set_title(f"Gene Regulatory Network ({name_i_})", fontsize=fontsize, pad=20)
         if save:
