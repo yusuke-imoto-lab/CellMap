@@ -2,6 +2,7 @@ import adjustText
 import anndata
 import IPython.display
 import logging
+import lingam
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -1338,6 +1339,7 @@ def write(
     use_HVG=True,
     method_HVG = "RECODE",
     n_HVG=10,
+    save_dir=None,
 ):
     _check_arguments(
         adata,
@@ -1433,13 +1435,16 @@ def write(
             if normalize:
                 val = (val - np.min(val)) / (np.max(val) - np.min(val))
             pd_out.insert(len(pd_out.columns), "HVG_" + gene, val)
+    
+    if save_dir is not None:
+        filename = "%s/%s" % (save_dir, filename)
+    pd_out.to_csv("%s.csv" % filename)
 
     print('succeeded in writing CellMapp data as "%s.csv"' % filename)
     print("You can visualize the CSV file by CellMapp viewer https://yusuke-imoto-lab.github.io/CellMapViewer/CellMapViewer/viewer.html")
 
     display(pd_out)
-
-    pd_out.to_csv("%s.csv" % filename)
+    
 
 def pl_pseudotime(
     adata,
@@ -1508,7 +1513,7 @@ def tl_trajectory(
     pot_opot_key_ = f"{potential_key}_{orthogonal_potential_key}_{basis}"
 
     data_pos = adata.obsm[basis_key]
-    orthogonal_potential_ = scipy.stats.zscore(adata.obs[pot_opot_key_])
+    orthogonal_potential_ = scipy.stats.zscore(adata.obs[pot_opot_key_].values)
 
     # Graph construction
     if graph_method == "Delauney":
@@ -2108,6 +2113,7 @@ def tl_DEG_dynamics(
     dynamics_key="dynamics",
     gene_dynamics_stats_key="mean",
     bifurcation_diagram_key="bifurcation_diagram",
+    path_scaled_key="path_scaled",
     highlight_genes=[],
     n_div=100,
     figsize=(14, 10),
@@ -2156,8 +2162,8 @@ def tl_DEG_dynamics(
             % (target_clusters[i], target_clusters[j], k, n_plot_, t + 1, n_div+1),
             end="",
         )
-        val_i_ = data_exp_[adata.uns['path_scaled'][name_i_][:,t]]
-        val_j_ = data_exp_[adata.uns['path_scaled'][name_j_][:,t]]
+        val_i_ = data_exp_[adata.uns[path_scaled_key][name_i_][:,t]]
+        val_j_ = data_exp_[adata.uns[path_scaled_key][name_j_][:,t]]
         mean_i_ = np.mean(val_i_,axis=0)
         mean_j_ = np.mean(val_j_,axis=0)
         FC_ = np.nan_to_num(np.log2(mean_j_/mean_i_))
@@ -2371,8 +2377,8 @@ def tl_DEG_dynamics(
             FC_ALL = []
             Pval_ALL = []
             for t in range(n_div+1):
-                val_i_ = data_exp_[adata.uns['path_scaled'][name_i_][:,t]]
-                val_j_ = data_exp_[adata.uns['path_scaled'][name_j_][:,t]]
+                val_i_ = data_exp_[adata.uns[path_scaled_key][name_i_][:,t]]
+                val_j_ = data_exp_[adata.uns[path_scaled_key][name_j_][:,t]]
                 mean_i_ = np.mean(val_i_, axis=0)
                 mean_j_ = np.mean(val_j_, axis=0)
                 FC_ = np.nan_to_num(np.log2(mean_j_ / mean_i_))
@@ -3629,524 +3635,12 @@ def view_landscape_3D(
         )
         plotly.offline.plot(fig, filename=filename + ".html")
 
-# def view_landscape(
-#     adata,
-#     source_cluster,
-#     target_clusters,
-#     path_key = "path",
-#     path_scaled_key = "path_scaled",
-#     exp_key=None,
-#     dynamics_key="dynamics",
-#     bifurcation_diagram_key="bifurcation_diagram",
-#     pot_key = "potential",
-#     n_div=100,
-#     n_grid = 100,
-#     n_grid_plot = 200,
-#     intp_method='linear',
-#     merge_step = 5,
-#     valley_range = 0.1,
-#     view_path = False,
-#     figsize=(10,10),
-#     fontsize_label = 12,
-#     fontize_text = 12,
-#     PC=1,
-#     view_init_elev=20,
-#     view_init_azim=100,
-#     view_timegrid = False,
-#     view_axis = True,
-#     view_clustername = True,
-#     timegrid_n = 10,
-#     timegrid_alpha = 0.5,
-#     timegrid_color = "k",
-#     timegrid_lw = 0.5,
-#     save=False,
-#     save_csv = False,
-#     save_dir=None,
-#     save_filename="Landscape",
-#     save_dpi = 100
-    
-# ):
-#     if dynamics_key not in adata.uns.keys():
-#         tl_dynamics(
-#             adata,
-#             source_cluster,
-#             target_clusters,
-#             path_key=path_key,
-#             exp_key=exp_key,
-#             dynamics_key=dynamics_key,
-#             n_div=n_div,
-#         )
-
-#     if bifurcation_diagram_key not in adata.uns.keys():
-#         tl_bifurcation_diagram(
-#             adata,
-#             source_cluster,
-#             target_clusters,
-#             path_key=path_key,
-#             exp_key=exp_key,
-#             dynamics_key=dynamics_key,
-#             bifurcation_diagram_key=bifurcation_diagram_key,
-#             n_div=n_div,
-#             PC=PC,
-#         )
-
-#     data_all_ = adata.uns[dynamics_key+"_PC"]
-#     x_lim_min,x_lim_max = np.min(data_all_[:,:,:,PC-1]), np.max(data_all_[:,:,:,PC-1])
-#     x_ = np.linspace(x_lim_min,x_lim_max, n_grid)
-#     z_plot = np.zeros([n_grid,n_div-merge_step])
-#     c_plot = np.zeros([n_grid,n_div-merge_step])
-#     pot_ = adata.obs[pot_key]
-#     cmap = plt.get_cmap("tab10")
-
-#     for ti_ in range(n_div-merge_step):
-#         for i in range(len(data_all_)):
-#             name_i_ = source_cluster + "_" + target_clusters[i]
-#             data_ = data_all_[i,:,ti_:ti_+merge_step+1:,PC-1].flatten()
-#             pot_t_ = pot_[adata.uns[path_scaled_key][name_i_][:,ti_:ti_+merge_step+1].flatten()].mean()/pot_.max()
-#             kde_model = scipy.stats.gaussian_kde(data_)
-#             dens_ = kde_model(x_)
-#             z_ = pot_t_-valley_range*dens_/np.max(dens_)
-#             z_plot[:,ti_] += z_/len(data_all_)
-#             c_plot[:,ti_] += dens_/np.max(dens_)/len(data_all_)
-#         c_plot[:,ti_] = 1-c_plot[:,ti_]
-
-#     x1 = x_
-#     x2 = np.linspace(0,1,n_div-merge_step)
-#     X1, X2 = np.meshgrid(x1, x2)
-
-#     grid_x, grid_y = np.meshgrid(np.linspace(x_lim_min,x_lim_max,n_grid_plot+1), np.linspace(0,1,n_grid_plot+1))
-#     grid_z  = scipy.interpolate.griddata(np.array([X1.flatten(), X2.flatten()]).T, z_plot.T.flatten(), (grid_x, grid_y), method=intp_method)
-#     color_z = scipy.interpolate.griddata(np.array([X1.flatten(), X2.flatten()]).T, c_plot.T.flatten(), (grid_x, grid_y), method=intp_method)
-#     dZ_dy, dZ_dx = np.gradient(grid_z, np.linspace(x_lim_min,x_lim_max,n_grid_plot+1), np.linspace(0,1,n_grid_plot+1))
-#     vel_rate = 1
-#     dZ_dy, dZ_dx = -vel_rate*(1-np.array(color_z,dtype=int))*dZ_dy, -vel_rate*(1-color_z)*dZ_dx
-#     dZ_dx = scipy.interpolate.griddata(np.array([grid_x.flatten(), grid_y.flatten()]).T, dZ_dx.flatten(), (grid_x, grid_y), method="cubic")
-#     dZ_dy = scipy.interpolate.griddata(np.array([grid_x.flatten(), grid_y.flatten()]).T, dZ_dy.flatten(), (grid_x, grid_y), method="cubic")
-
-#     basecolor = matplotlib.cm.Oranges(0.99)
-#     basecolor_alpha = 0.9
-
-#     fig = plt.figure(figsize=figsize)
-#     ax = fig.add_subplot(111, projection='3d')
-
-#     ls = matplotlib.colors.LightSource(270, 45)
-#     rgb = ls.shade(color_z, cmap=matplotlib.cm.gist_earth, vert_exag=0.1, blend_mode='soft',vmin=-0.05, vmax=1.1)
-#     ax.plot_surface(grid_x, grid_y, grid_z, facecolors=rgb,  linewidth=0, zorder=0, alpha=1, edgecolor='none',rstride=1, cstride=1, antialiased=False, shade=False)
-
-#     px_,py_,pz_ = grid_x[:,-1],grid_y[:,-1],grid_z[:,-1]
-#     verts = [[px_[i], py_[i], pz_[i]] for i in range(len(px_))] + [[px_[i], py_[i], 0] for i in reversed(range(len(px_)))]
-#     poly = mpl_toolkits.mplot3d.art3d.Poly3DCollection([verts], alpha=basecolor_alpha, facecolors=basecolor, edgecolors='none',zorder=0)
-#     ax.add_collection3d(poly)
-
-#     px_,py_,pz_ = grid_x[:,0],grid_y[:,0],grid_z[:,0]
-#     verts = [[px_[i], py_[i], pz_[i]] for i in range(len(px_))] + [[px_[i], py_[i], 0] for i in reversed(range(len(px_)))]
-#     poly = mpl_toolkits.mplot3d.art3d.Poly3DCollection([verts], alpha=basecolor_alpha, facecolors=basecolor, edgecolors='none',zorder=0)
-#     ax.add_collection3d(poly)
-
-#     px_,py_,pz_ = grid_x[-1],grid_y[-1],grid_z[-1]
-#     verts = [[px_[i], py_[i], pz_[i]] for i in range(len(px_))] + [[px_[i], py_[i], 0] for i in reversed(range(len(px_)))]
-#     poly = mpl_toolkits.mplot3d.art3d.Poly3DCollection([verts], alpha=basecolor_alpha, facecolors=basecolor, edgecolors='none',zorder=0)
-#     ax.add_collection3d(poly)
-
-#     px_,py_,pz_ = grid_x[0],grid_y[0],grid_z[0]
-#     verts = [[px_[i], py_[i], pz_[i]] for i in range(len(px_))] + [[px_[i], py_[i], 0] for i in reversed(range(len(px_)))]
-#     poly = mpl_toolkits.mplot3d.art3d.Poly3DCollection([verts], alpha=basecolor_alpha, facecolors=basecolor, edgecolors='none',zorder=0)
-#     ax.add_collection3d(poly)
-
-#     if view_path:
-#         for i in range(len(target_clusters)):
-#             name_i_ = source_cluster + "_" + target_clusters[i]
-#             py_ = np.linspace(0,1,n_div+1)
-#             px_ = adata.uns[bifurcation_diagram_key][name_i_][:,PC-1]
-#             pz_ = np.array([grid_z.flatten()[np.argmin(np.linalg.norm(np.array([x__,y__])-np.array([grid_x.flatten(),grid_y.flatten()]).T,axis=1))] for x__,y__ in zip(px_,py_)])
-#             # print(px_)
-#             ax.plot(px_, py_, pz_, lw=4, color="w", zorder=10, alpha=0.8)
-#             ax.plot(px_, py_, pz_, lw=2, c=cmap(i), zorder=100)
-
-
-#     if view_clustername:
-#         text = ax.text(np.linspace(x_lim_min,x_lim_max, n_grid_plot)[np.argmin(grid_z[0])],0,np.max(grid_z[:,0]),source_cluster,fontsize=fontize_text,va="bottom",ha="center",zorder=100,fontweight="bold")
-#         text.set_path_effects([matplotlib.patheffects.withStroke(linewidth=3, foreground='white')])
-#         for i in range(len(target_clusters)):
-#             name_i_ = source_cluster + "_" + target_clusters[i]
-#             z_ = np.min(grid_z[-1])
-#             text = ax.text(adata.uns[bifurcation_diagram_key][name_i_][:,PC-1][-1],1.00,z_,
-#                     target_clusters[i],fontsize=fontize_text,va="top",ha="center",zorder=100,fontweight="bold",c=cmap(i))
-#             text.set_path_effects([matplotlib.patheffects.withStroke(linewidth=3, foreground='white')])
-
-#     if view_timegrid:
-#         for y__ in np.linspace(0,1,timegrid_n+1):
-#             idx__ = np.argmin(np.abs(grid_y[:,0]-y__))
-#             ax.plot(grid_x[0],y__,grid_z[idx__],zorder=100,c=timegrid_color,alpha=timegrid_alpha,lw=timegrid_lw,ls=(5,(10,5)))
-#             ax.text(grid_x[0,-1],y__,grid_z[idx__,-1],' {:.2g}'.format(y__),zorder=200)
-
-#     ax.set_xlim(x_lim_min,x_lim_max)
-#     ax.set_ylim(0,1.01)
-#     ax.set_zlim(0,1)
-#     ax.set_xlabel("State space (PC%s)" % PC,fontsize=fontsize_label)
-#     ax.set_ylabel("Time",fontsize=fontsize_label)
-#     ax.set_zlabel("Potential",fontsize=fontsize_label)
-#     ax.set_box_aspect((1, 1, 0.6))
-#     ax.view_init(elev=view_init_elev, azim=view_init_azim)
-#     ax.xaxis.pane.set_edgecolor('w')
-#     ax.yaxis.pane.set_edgecolor('w')
-#     ax.zaxis.pane.set_edgecolor('w')
-#     ax.xaxis.pane.set_facecolor("w")
-#     ax.yaxis.pane.set_facecolor("w")
-#     ax.zaxis.pane.set_facecolor("w")
-#     ax.grid(False)
-#     if view_axis == False:
-#         ax.axis("off")
-#     plt.show()
-
-#     if save:
-#         filename = (
-#             "%s" % (save_filename)
-#             if save_dir == None
-#             else "%s/%s" % (save_dir, save_filename)
-#         )
-#         fig.savefig(filename + ".png", bbox_inches="tight",dpi=save_dpi)
-#     if save_csv:
-#         filename = (
-#             "%s" % (save_filename)
-#             if save_dir == None
-#             else "%s/%s" % (save_dir, save_filename)
-#         )
-#         # pd.DataFrame({"X":grid_x.flatten(), "Y":grid_y.flatten(), "Potential":grid_z.flatten()})
-#         out_ = pd.DataFrame({"X":(grid_x.flatten()-x_lim_min)/(x_lim_max-x_lim_min), 
-#                              "Y":grid_y.flatten(), 
-#                              "Potential":grid_z.flatten(), 
-#                              "Potential_color":color_z.flatten(),
-#                              "Velocity_x":2*dZ_dx.flatten()/(x_lim_max-x_lim_min), 
-#                              "Velocity_y":dZ_dy.flatten()/(1-valley_range)})
-#         out_.to_csv(filename+".csv")
-
-
-def calc_gene_atlas(
-    adata,
-    source_cluster="source",
-    target_clusters=["target1", "target2"],
-    path_key="path",
-    exp_key=None,
-    dynamics_key="dynamics",
-    gene_dynamics_stats_key="mean",
-    gene_atlas_key="gene_atlas",
-    n_div=100,
-    n_neighbors=15,
-    min_dist=0.3,
-    seed=0,
-    threshold_min=1,
-    n_clusters=20,
-    n_components=2,
-):
-    if dynamics_key not in adata.uns.keys():
-        tl_dynamics(
-            adata,
-            source_cluster,
-            target_clusters,
-            path_key=path_key,
-            exp_key=exp_key,
-            dynamics_key=dynamics_key,
-            n_div=n_div,
-        )
-
-    gene_dynamics_ = adata.uns[dynamics_key][gene_dynamics_stats_key]
-    gene_dynamics_all_ = np.empty([0, n_div + 1], dtype=float)
-    gene_dynamics_all_norm_ = np.empty([0, n_div + 1], dtype=float)
-    idx_gene_dynamics_ = [0]
-    for i in range(len(target_clusters)):
-        name_i_ = source_cluster + "_" + target_clusters[i]
-        max_ = np.max(gene_dynamics_[name_i_], axis=0)
-        idx_ = max_ > threshold_min
-        adata.var["expressed_" + name_i_] = idx_
-        idx_gene_dynamics_ = np.append(
-            idx_gene_dynamics_, idx_gene_dynamics_[i] + sum(idx_)
-        )
-        gene_dynamics_all_ = np.vstack(
-            (gene_dynamics_all_, gene_dynamics_[name_i_][:, idx_].T)
-        )
-        gene_dynamics_all_norm_ = np.vstack(
-            (gene_dynamics_all_norm_, (gene_dynamics_[name_i_][:, idx_] / max_[idx_]).T)
-        )
-
-    umap_ = umap.UMAP(
-        n_components=n_components,
-        random_state=seed,
-        n_neighbors=n_neighbors,
-        min_dist=min_dist,
-    )
-    gene_dynamics_all_umap_ = umap_.fit_transform(gene_dynamics_all_)
-
-    data_ = gene_dynamics_all_umap_
-    gm = sklearn.mixture.GaussianMixture(n_components=n_clusters, random_state=0).fit(
-        data_
-    )
-    clusters_tmp_ = gm.predict(data_)
-    pc1_ = sklearn.decomposition.PCA(n_components=1).fit_transform(data_)[:, 0]
-    pc1_ = np.sign(pc1_ @ gene_dynamics_all_umap_[:, 0]) * pc1_
-    pc1_order_ = np.argsort(
-        [np.mean(pc1_[clusters_tmp_ == i]) for i in range(n_clusters)]
-    )
-    dict_sort_ = dict(zip(pc1_order_, np.unique(clusters_tmp_)))
-    clusters_ = np.array([dict_sort_[c] for c in clusters_tmp_])
-
-    texts_ = []
-    index_ = []
-    s_, e_ = 0, 0
-    for i in range(len(target_clusters)):
-        name_i_ = source_cluster + "_" + target_clusters[i]
-        idx_ = adata.var["expressed_" + name_i_]
-        gene_list_ = adata.var.index[idx_].values
-        e_ += sum(idx_)
-        txt_ = (
-            gene_list_
-            + "<br>"
-            + target_clusters[i]
-            + "<br>cluster "
-            + np.array(clusters_[s_:e_] + 1, dtype=str)
-        )  # + '<br><img src="'+image_+'" width="200">'
-        texts_ = np.append(texts_, txt_)
-        index_ = np.append(
-            index_, source_cluster + "_" + target_clusters[i] + "_" + gene_list_
-        )
-        adata.var["clusters_" + name_i_] = -np.ones(adata.shape[1], dtype=int)
-        adata.var["clusters_" + name_i_][idx_] = clusters_[s_:e_]
-        s_ += sum(idx_)
-
-    adata.uns[gene_atlas_key] = {
-        "index": index_,
-        "texts": texts_,
-        "dynamics": gene_dynamics_all_,
-        "dynamics_norm": gene_dynamics_all_norm_,
-        "gene_atlas": gene_dynamics_all_umap_,
-        "clusters": clusters_,
-    }
-
-
-def gene_atlas(
-    adata,
-    source_cluster="source",
-    target_clusters=["target1", "target2"],
-    highlight_genes=[],
-    dynamics_key="dynamics",
-    gene_atlas_key="gene_atlas",
-    normalization=False,
-    n_div=100,
-    n_neighbors=15,
-    min_dist=0.3,
-    seed=0,
-    threshold_min=1,
-    n_clusters=20,
-    n_components=2,
-    pt_size=5,
-    save=False,
-    save_dir=None,
-    save_filename="Gene_atlas",
-    save_type="html",
-):
-    if gene_atlas_key not in adata.uns.keys():
-        calc_gene_atlas(
-            adata,
-            source_cluster,
-            target_clusters,
-            dynamics_key=dynamics_key,
-            gene_atlas_key=gene_atlas_key,
-            n_div=n_div,
-            n_neighbors=n_neighbors,
-            min_dist=min_dist,
-            seed=seed,
-            threshold_min=threshold_min,
-            n_clusters=n_clusters,
-            n_components=n_components,
-        )
-    elif n_clusters != len(np.unique(adata.uns[gene_atlas_key]["clusters"])):
-        calc_gene_atlas(
-            adata,
-            source_cluster,
-            target_clusters,
-            dynamics_key=dynamics_key,
-            gene_atlas_key=gene_atlas_key,
-            n_div=n_div,
-            n_neighbors=n_neighbors,
-            min_dist=min_dist,
-            seed=seed,
-            threshold_min=threshold_min,
-            n_clusters=n_clusters,
-            n_components=n_components,
-        )
-
-    texts_ = adata.uns[gene_atlas_key]["texts"]
-    if normalization:
-        gene_dynamics_all_ = adata.uns[gene_atlas_key]["dynamics_norm"]
-    else:
-        gene_dynamics_all_ = adata.uns[gene_atlas_key]["dynamics"]
-    gene_dynamics_all_umap_ = adata.uns[gene_atlas_key]["gene_atlas"]
-    clusters_ = adata.uns[gene_atlas_key]["clusters"]
-    cluster_set_ = np.unique(clusters_)
-
-    x_data = gene_dynamics_all_umap_[:, 0]
-    y_data = gene_dynamics_all_umap_[:, 1]
-
-    color_clusters_ = np.array(
-        [
-            "rgb" + str(tuple(int(i * 255) for i in plt.get_cmap("tab20")(c % 20)))
-            for c in clusters_
-        ]
-    )
-    color_celltypes_ = np.empty(len(gene_dynamics_all_), dtype=object)
-
-    annotations = [
-        go.layout.Annotation(
-            xref="paper",
-            yref="paper",
-            x=0.01,
-            y=0.99,
-            text="<b>Gene Atlas<b>",
-            font=dict(size=18, color="white"),
-            showarrow=False,
-        )
-    ]
-    s_, e_ = 0, 0
-    for i in range(len(target_clusters)):
-        name_i_ = source_cluster + "_" + target_clusters[i]
-        idx_ = adata.var["expressed_" + name_i_]
-        e_ += sum(idx_)
-        gene_list_ = adata.var.index[idx_].values
-        color_celltypes_[s_:e_] = "rgba" + str(plt.get_cmap("tab10")(i % 10))
-        for gene in highlight_genes:
-            if gene in gene_list_:
-                x_pos = x_data[np.arange(sum(idx_))[gene_list_ == gene][0] + s_]
-                y_pos = y_data[np.arange(sum(idx_))[gene_list_ == gene][0] + s_]
-                annotations.append(
-                    go.layout.Annotation(
-                        x=x_pos,
-                        y=y_pos,
-                        xref="x",
-                        yref="y",
-                        text="<b>%s_%s<b>" % (target_clusters[i], gene),
-                        showarrow=True,
-                        arrowhead=1,
-                        arrowcolor="white",
-                        font=dict(size=12, color="white"),
-                    )
-                )
-        s_ += sum(idx_)
-
-    data_clusters_ = [
-        go.Scatter(
-            x=x_data,
-            y=y_data,
-            mode="markers",
-            marker=dict(
-                color=color_clusters_,
-                size=30,
-                opacity=0.2,
-            ),
-            hoverinfo="skip",
-            showlegend=False,
-        )
-    ]
-    for c in cluster_set_:
-        idx_ = clusters_ == c
-        data_clusters_.append(
-            go.Scatter(
-                x=x_data[idx_],
-                y=y_data[idx_],
-                text=texts_[idx_],
-                mode="markers",
-                name="cluster " + str(c + 1),
-                marker=dict(
-                    color="rgb"
-                    + str(tuple(int(i * 255) for i in plt.get_cmap("tab20")(c % 20))),
-                    size=pt_size,
-                    opacity=1,
-                    line=dict(
-                        color="white",
-                        width=0.5,
-                    ),
-                ),
-            )
-        )
-
-    s_, e_ = 0, 0
-    data_celltypes_ = []
-    for i in range(len(target_clusters)):
-        name_i_ = source_cluster + "_" + target_clusters[i]
-        idx_ = adata.var["expressed_" + name_i_]
-        gene_list_ = adata.var.index[idx_].values
-        e_ += sum(idx_)
-        data_celltypes_.append(
-            go.Scatter(
-                x=x_data[s_:e_],
-                y=y_data[s_:e_],
-                text=texts_[s_:e_],
-                mode="markers",
-                name=target_clusters[i],
-                marker=dict(
-                    # color=color_celltypes_[s_:e_],
-                    size=pt_size,
-                    opacity=1,
-                    line=dict(
-                        color="white",
-                        width=0.5,
-                    ),
-                ),
-            )
-        )
-        s_ += sum(idx_)
-
-    layout = go.Layout(
-        width=1200,
-        height=800,
-        plot_bgcolor="rgba(1,1,1,1)",
-        paper_bgcolor="rgba(0,0,0,0)",
-        xaxis=dict(
-            # showgrid=False,
-            gridcolor="gray",
-            gridwidth=1,
-            griddash="dot",
-            zeroline=False,
-            showticklabels=False,
-            layer="below traces",
-        ),
-        yaxis=dict(
-            # showgrid=False,
-            gridcolor="gray",
-            gridwidth=1,
-            griddash="dot",
-            zeroline=False,
-            showticklabels=False,
-            layer="below traces",
-        ),
-        annotations=annotations,
-    )
-
-    fig1 = go.Figure(data=data_clusters_, layout=layout)
-    pio.show(fig1)
-
-    fig2 = go.Figure(data=data_celltypes_, layout=layout)
-    pio.show(fig2)
-
-    if save:
-        filename = (
-            "%s" % (save_filename)
-            if save_dir == None
-            else "%s/%s" % (save_dir, save_filename)
-        )
-        if save_type in ["png", "pdf", "svg", "eps"]:
-            pio.write_image(fig1, filename + "_cluster." + save_type)
-            pio.write_image(fig2, filename + "_celltype." + save_type)
-        if save_type in ["html"]:
-            plotly.offline.plot(fig1, filename=filename + "_cluster." + save_type)
-            plotly.offline.plot(fig2, filename=filename + "_celltype." + save_type)
-
-
 def tl_find_key_genes(
     adata,
     time,
     source_cluster="source",
     target_clusters=["target1", "target2"],
-    n_genes=10,
+    n_genes=5,
     threshold_min=1,
     path_key="path",
     exp_key=None,
@@ -4158,6 +3652,7 @@ def tl_find_key_genes(
     save=False,
     save_dir=None,
     save_filename="Key_gene_dynamics",
+    add_gene = False,
 ):
     exp_key, source_cluster,target_clusters = _check_params(adata, exp_key=exp_key, source_cluster=source_cluster,target_clusters=target_clusters)
     if dynamics_key not in adata.uns.keys():
@@ -4189,6 +3684,7 @@ def tl_find_key_genes(
         columns=pd.MultiIndex.from_product([list(columns_), []]),
     )
     gene_dynamics_ = adata.uns[dynamics_key][gene_dynamics_stats_key]
+    genes_all = []
     for i in range(len(target_clusters)):
         for j in range(i + 1, len(target_clusters)):
             name_i_ = source_cluster + "_" + target_clusters[i]
@@ -4233,6 +3729,7 @@ def tl_find_key_genes(
                 np.append("Source (0)\n%s" % source_cluster, np.array(vlines)[1:-1]),
                 "Target (1)",
             )
+            genes_all.append(adata.var.index[idx_max_][diff_order_[:n_genes]])
             if fig_show:
                 for i_ in range(n_genes):
                     fig, ax = plt.subplots(1, 1, figsize=(8, 2), tight_layout=True)
@@ -4296,96 +3793,181 @@ def tl_find_key_genes(
                         )
                         fig.savefig(filename + ".png", bbox_inches="tight")
     display(out_pd_)
-    
+    if add_gene == True:
+        if "CellMap_parameters" not in adata.uns.keys():
+            adata.uns["CellMap_parameters"] = {}
+        if "genes" not in adata.uns["CellMap_parameters"].keys():
+            adata.uns["CellMap_parameters"]["genes"] = []
+        adata.uns["CellMap_parameters"]["genes"] = np.unique(list(np.append(adata.uns["CellMap_parameters"]["genes"],np.unique(genes_all))))
+
 def tl_GRN(
     adata,
     source_cluster="source",
     target_clusters=["target1", "target2"],
-    path_key="path",
     exp_key=None,
-    grn_key="GRN",
-    n_components=20,
+    path_scaled_key="path_scaled",
+    grn_key = "GRN",
+    random_state=0,
+    genes=None,
+    method_HVG="RECODE",
+    n_genes=20,
+    lags = 1,
+    prune=True,
 ):
-    exp_key, source_cluster,target_clusters = _check_params(adata, exp_key=exp_key, source_cluster=source_cluster,target_clusters=target_clusters)
+    exp_key, source_cluster,target_clusters, genes = _check_params(adata, exp_key=exp_key, source_cluster=source_cluster,target_clusters=target_clusters, genes=genes)
     data_exp = _set_expression_data(adata, exp_key)
 
-    adata.uns[grn_key] = {}
+    if genes is None:
+        stat_var = np.zeros(adata.shape[1])
+        if method_HVG == "RECODE":
+            if "RECODE_log" in adata.layers.keys():
+                stat_var = np.var(adata.layers["RECODE_log"], axis=0)
+            else:
+                try: import screcode
+                except ImportError:
+                    raise ImportError(
+                        "RECODE is not installed. Please install RECODE to use this method.\\pip install screcode"
+                    )
+                adata_ = screcode.RECODE().fit_transform(adata)
+                stat_var = np.var(adata_.layers["RECODE_log"], axis=0)
+        elif method_HVG == "seurat":
+            scanpy.pp.highly_variable_genes(adata)
+            stat_var = adata.var["dispersions_norm"].values
+        elif method_HVG == "seurat_v3":
+            scanpy.pp.highly_variable_genes(adata, flavor="seurat_v3")
+            stat_var = adata.var["variances_norm"].values
+        else:
+            raise ValueError("Unknown method for HVG: %s" % method_HVG)
+        idx_rank_ = np.argsort(stat_var)[::-1][:n_genes]
+        genes = adata.var.index[idx_rank_]
+    
+    idx_genes = np.isin(adata.var.index, genes)
+    n_genes = sum(idx_genes)
+
+    GRNs = {"genes":genes,"networks":{}}
     for i in range(len(target_clusters)):
         name_i_ = source_cluster + "_" + target_clusters[i]
-        adata.uns[grn_key][name_i_] = np.empty([adata.shape[1], adata.shape[1]])
-        X_ = np.empty([adata.shape[1], 0], dtype=float)
-        Y_ = np.empty([adata.shape[1], 0], dtype=float)
-        ALL_ = np.empty([adata.shape[1], 0], dtype=float)
-        for k in range(len(adata.uns[path_key][name_i_])):
-            idx_cells_ = np.array(adata.uns[path_key][name_i_][k])
-            n_nodes_ = len(data_exp[idx_cells_])
-            X_ = np.hstack((X_, data_exp[idx_cells_][:-1].T))
-            Y_ = np.hstack((Y_, data_exp[idx_cells_][1:].T))
-            ALL_ = np.hstack((ALL_, data_exp[idx_cells_].T))
-        pca_ = sklearn.decomposition.PCA(n_components=n_components)
-        pca_.fit(ALL_.T)
+        GRN_pos = np.zeros((adata.uns[path_scaled_key][name_i_].shape[0], n_genes, n_genes))
+        GRN_neg = np.zeros((adata.uns[path_scaled_key][name_i_].shape[0], n_genes, n_genes))
+        GRN_pos_prob = np.zeros((adata.uns[path_scaled_key][name_i_].shape[0], n_genes, n_genes))
+        GRN_neg_prob = np.zeros((adata.uns[path_scaled_key][name_i_].shape[0], n_genes, n_genes))
+        GRN_causal_order = np.zeros((adata.uns[path_scaled_key][name_i_].shape[0], n_genes))
+        for t in range(adata.uns[path_scaled_key][name_i_].shape[0]):
+            model = lingam.VARLiNGAM(lags=lags, prune=prune, random_state=random_state)
+            model.fit(data_exp[adata.uns[path_scaled_key][name_i_][t]][:,idx_genes])
+            GRN_lingam = model.adjacency_matrices_[0]
+            GRN_pos[t] = np.where(GRN_lingam > 0, GRN_lingam, 0)
+            GRN_neg[t] = np.where(GRN_lingam < 0, GRN_lingam, 0)
+            GRN_pos_prob[t] = np.where(GRN_lingam > 0, 1, 0)
+            GRN_neg_prob[t] = np.where(GRN_lingam < 0, 1, 0)
+            GRN_causal_order[t] = np.argsort(model.causal_order_)
+        GRN_pos = np.mean(GRN_pos, axis=0)
+        GRN_neg = np.mean(GRN_neg, axis=0)
+        GRN_pos_prob = np.mean(GRN_pos_prob, axis=0)
+        GRN_neg_prob = np.mean(GRN_neg_prob, axis=0)
+        GRN_causal_order = np.mean(GRN_causal_order, axis=0)
+        coef_pos = np.array(GRN_pos_prob > GRN_neg_prob,dtype=int)
+        coef_neg = np.array(GRN_pos_prob < GRN_neg_prob,dtype=int)
+        GRN = coef_pos*GRN_pos + coef_neg*GRN_neg
+        GRN_prob  = coef_pos*GRN_pos_prob + coef_neg*GRN_neg_prob
 
-        X_Lasso = pca_.transform(X_.T)
-        Y_Lasso = pca_.transform(Y_.T)
-
-        alphas_cv = np.logspace(-2, 4, num=20)
-        clf_cv = sklearn.linear_model.MultiTaskLassoCV(
-            alphas=alphas_cv, cv=3, fit_intercept=False
-        )
-        clf_cv.fit(X_Lasso, Y_Lasso)
-        clf = sklearn.linear_model.Lasso(alpha=clf_cv.alpha_)
-        clf.fit(X_Lasso, Y_Lasso)
-        A_pca_ = pca_.components_.T @ clf.coef_ @ pca_.components_
-        adata.uns[grn_key][name_i_] = {"GRN_matrix": A_pca_, "reg_param": clf_cv.alpha_}
+        GRNs["networks"][name_i_] = {"GRN": GRN, "GRN_prob": GRN_prob, "GRN_pos": GRN_pos,"GRN_neg": GRN_neg,
+                                    "GRN_pos_prob": GRN_pos_prob,"GRN_neg_prob": GRN_neg_prob,"causal_order": GRN_causal_order}
+    adata.uns[grn_key] = GRNs
 
 
 def pl_GRN(
     adata,
-    source_cluster="source",
-    target_clusters=["target1", "target2"],
-    exp_key=None,
-    grn_key="GRN",
-    genes=None,
+    grn_key = "GRN",
     n_genes=20,
+    figsize=(10, 9),
+    vmin=-0.2,
+    vmax=0.2,
+    fontsize=14,
     save=False,
     save_dir=None,
     save_filename="GRN",
+    grn_color_map="bwr",
+    sort=False,
 ):
-    exp_key, source_cluster,target_clusters = _check_params(adata, exp_key=exp_key, source_cluster=source_cluster,target_clusters=target_clusters)
-    if genes == None:
-        data_exp = _set_expression_data(adata, exp_key)
-        data_exp_var_div_mean = np.nan_to_num(
-            np.var(data_exp, axis=0) / np.mean(data_exp, axis=0)
-        )
-        idx_rank_ = np.argsort(data_exp_var_div_mean)[::-1][:n_genes]
-        genes = adata.var.index[idx_rank_]
+    genes = np.array(adata.uns['CellMap_parameters']["genes"])
+    idx_genes = np.isin(adata.var.index, genes)
+    n_genes = sum(idx_genes)
 
-    for i in range(len(target_clusters)):
-        name_i_ = source_cluster + "_" + target_clusters[i]
-        df_A_ = pd.DataFrame(
-            adata.uns[grn_key][name_i_]["GRN_matrix"],
-            index=adata.var.index,
-            columns=adata.var.index,
+    for name_i_ in adata.uns[grn_key]["networks"].keys():
+        GRN_color = adata.uns[grn_key]["networks"][name_i_]["GRN"]
+        GRN_size  = adata.uns[grn_key]["networks"][name_i_]["GRN_prob"]
+
+        idx_order = np.argsort(adata.uns[grn_key]["networks"][name_i_]['causal_order'])
+        genes_names = np.array([f"{g_}({i_+1:02d})" for g_, i_ in zip(genes, np.argsort(idx_order))])
+        if sort:
+            GRN_color = GRN_color[idx_order][:, idx_order]
+            GRN_size  = GRN_size[idx_order][:, idx_order]
+            genes_names = genes_names[idx_order]
+        fig, ax = plt.subplots(figsize=figsize, constrained_layout=True, tight_layout=True)
+        fontsize = 14
+        vmin, vmax = -0.2, 0.2
+        prob_examples = [0.25, 0.5, 0.75, 1.0]
+        size_examples = [p * 500 for p in prob_examples]
+        handles = [
+            ax.scatter([], [], s=s, color='gray', alpha=1, edgecolors='k', linewidths=0.5, label=f'{int(p*100)}%')
+            for s, p in zip(size_examples, prob_examples)
+        ]
+
+        ax.legend(
+            handles=handles,
+            title="Probability",
+            title_fontsize=fontsize,
+            loc='upper left',
+            labelspacing=1.0,
+            borderpad=0.3,
+            handletextpad=0.2,
+            bbox_to_anchor=(1, 1),
+            frameon=False,
+            fontsize=fontsize
         )
-        vmin = min(-0.01, np.percentile(adata.uns[grn_key][name_i_]["GRN_matrix"], 5))
-        vmax = max(0.01, np.percentile(adata.uns[grn_key][name_i_]["GRN_matrix"], 95))
-        fig, ax = plt.subplots(1, 1, figsize=(10, 8), tight_layout=True)
-        sns.heatmap(
-            df_A_[genes].loc[genes].T,
-            cmap="bwr",
-            ax=ax,
-            robust=True,
-            vmin=vmin,
-            vmax=vmax,
-            center=0,
+        x, y = np.meshgrid(np.arange(n_genes), np.arange(n_genes))
+        x = x.flatten()
+        y = y.flatten()
+        colors = GRN_color.flatten()
+        sizes = GRN_size.flatten() * 1000
+        y = n_genes - 1 - y  # Reverse y-axis to match the original order
+        scatter = ax.scatter(
+            x, y, c=colors, s=sizes, cmap=grn_color_map, vmin=vmin, vmax=vmax,
+            alpha=1, edgecolors='k', linewidths=0.5, zorder=10
         )
-        ax.set_title(name_i_)
-        ax.set_xlabel("Target")
-        ax.set_ylabel("Source")
+        cbar = plt.colorbar(scatter, ax=ax, label='Regulatory strength', shrink=0.6, aspect=20, pad=0.02, anchor=(0.0, 0.0))
+        cbar.ax.tick_params(labelsize=fontsize)
+        cbar.set_label('Regulatory strength', fontsize=fontsize)
+        ax.set_xticks(np.arange(n_genes))
+        ax.set_xticklabels(genes_names, rotation=90, fontsize=fontsize)
+        ax.tick_params(axis='x', which='both', top=True, bottom=False, labeltop=True, labelbottom=False)
+        
+        ax.xaxis.set_label_position('top')
+        ax.set_yticks(np.arange(n_genes))
+        ax.set_yticklabels(genes_names[::-1], fontsize=fontsize)
+        xlabel = ax.set_xlabel('Source gene', fontsize=fontsize, labelpad=10)
+        xlabel.set_bbox({
+            'facecolor': 'cyan',
+            'edgecolor': 'k',
+            'linewidth': 1
+        })
+        ylabel = ax.set_ylabel('Target gene', fontsize=fontsize, labelpad=10)
+        ylabel.set_bbox({
+            'facecolor': 'pink',
+            'edgecolor': 'k',
+            'linewidth': 1
+        })
+        ax.grid(True, zorder=0, ls="--")
+        ax.set_title(f"Gene Regulatory Network ({name_i_})", fontsize=fontsize, pad=20)
         if save:
             filename = (
-                "%s_%s" % (save_filename,name_i_)
+                f"{save_filename}_{name_i_}"
                 if save_dir == None
-                else "%s/%s" % (save_dir, save_filename)
+                else f"{save_dir}/{save_filename}_{name_i_}"
             )
             fig.savefig(filename + ".png", bbox_inches="tight")
+        plt.show()
+        
+        # if show_graph:
+        #     lingam.utils.make_dot(GRN_color,labels=list(genes))
