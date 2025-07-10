@@ -117,4 +117,4 @@ MIT © 2025 Yusuke Imoto
 
 * **Yusuke Imoto**
 * Email: [imoto.yusuke.4e@kyoto-u.ac.jp](mailto:imoto.yusuke.4e@kyoto-u.ac.jp)
-* GitHub: [yusuke-imoto-lab/eps-attracting-basin](https://github.com/yusuke-imoto-lab/eps-attracting-basin)
+* GitHub: [yusuke-imoto-lab/CellMap](https://github.com/yusuke-imoto-lab/CellMap)
