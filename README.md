@@ -1,6 +1,6 @@
 # CellMap - RNA landscape analysis
 
-<div style="text-align:left"><img style="width:100%; height: auto" src="https://github.com/yusuke-imoto-lab/CellMap/blob/main/images/CellMap_Overview.jpg"/></div>
+<div style="text-align:left"><img style="width:100%; height: auto" src="https://github.com/yusuke-imoto-lab/CellMap/blob/main/images/CellMap_overview.jpg"/></div>
 
 The CellMap is a RNA landscape analysis framework for scRNA-seq data. 
 
