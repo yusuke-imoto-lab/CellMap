@@ -38,6 +38,7 @@ poetry.toml
 cellmap/CellMap_test_pancreas.ipynb
 cellmap/TEST*
 cellmap/history/*
+cellmap/history_/*
 cellmap/*.csv
 cellmap/*.gif
 cellmap/*.html
