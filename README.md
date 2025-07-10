@@ -1,4 +1,4 @@
-# CellMap - RNA landscape analysis
+# CellMap - RNA landscape analysis framework
 
 <div style="text-align:left"><img style="width:100%; height: auto" src="https://github.com/yusuke-imoto-lab/CellMap/blob/main/images/CellMap_overview.jpg"/></div>
 
