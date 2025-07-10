@@ -1,0 +1,11 @@
+adjustText>=0.8
+anndata>=0.8.0
+matplotlib>=3.7.1
+numpy>=1.20
+plotly>=5.14.1
+scanpy>=1.9.3
+scikit-learn>=0.24
+scipy>=1.8.1
+scvelo>=0.2.5
+nbformat>=4.2.0
+lingam>=1.1.0
